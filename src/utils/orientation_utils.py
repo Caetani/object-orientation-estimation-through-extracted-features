@@ -61,4 +61,13 @@ def rotation_matrix_to_euler(R):
     pitch = np.arcsin(-R[2, 0])
     roll  = np.arctan2(R[2, 1] / np.cos(pitch), R[2, 2] / np.cos(pitch))
     yaw   = np.arctan2(R[1, 0] / np.cos(pitch), R[0, 0] / np.cos(pitch))
+
+    return np.array([roll, pitch, yaw])
+
+
+def quaternion_to_euler(q):
+    w, x, y, z = q
+    roll  = np.arctan2(2*(w*x + y*z), 1 - 2*(x**2 + y**2))
+    pitch = np.arcsin(2*(w*y - z*x))
+    yaw   = np.arctan2(2*(w*z + x*y), 1 - 2*(y**2 + z**2))
     return np.array([roll, pitch, yaw])
