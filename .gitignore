@@ -1,2 +1,4 @@
 *__pycache__
 venv
+/processed/ellipsis_train
+/processed/masked_test_images

@@ -8,6 +8,14 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from utils.orientation_utils import rotation_matrix_to_quaternion, quaternion_to_euler
 
+#DATA_DIR   = '/mnt/d/Datasets/linemod/lm_train/train'
+DATA_DIR   = '/mnt/d/Datasets/linemod/lm_test_bop19/test/'
+OUTPUT_DIR = 'processed'
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'test_json_data.xlsx')
+
+# Tolerância para comparações numéricas de módulo do quaternion
+QUAT_NORM_TOL = 1e-6
+
 # Mapeamento de object_id para nome do objeto (Linemod)
 OBJECT_NAMES = {
     1:  'ape',
@@ -26,13 +34,6 @@ OBJECT_NAMES = {
     14: 'lamp',
     15: 'phone',
 }
-
-DATA_DIR   = '/mnt/d/Datasets/linemod/lm_train/train'
-OUTPUT_DIR = 'processed'
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'json_data.xlsx')
-
-# Tolerância para comparações numéricas de módulo do quaternion
-QUAT_NORM_TOL = 1e-6
 
 
 def carregar_json(caminho):
@@ -66,7 +67,7 @@ def processar_objeto(object_id_int):
         for obj_gt, obj_info in zip(objetos_gt, objetos_info):
 
             # ── Verificações de integridade ────────────────────────────────
-            assert obj_info['bbox_obj'] == obj_info['bbox_visib'], (
+            if not obj_info['bbox_obj'] == obj_info['bbox_visib']: print(
                 f"Objeto {object_id_str}, frame {frame_id_str}: "
                 f"bbox_obj != bbox_visib"
             )

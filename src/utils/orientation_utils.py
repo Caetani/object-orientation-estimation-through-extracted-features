@@ -1,22 +1,22 @@
 import numpy as np
 
 
-def euler_to_quaternion(roll, pitch, yaw):
+def euler_to_quaternion(roll, pitch, yaw, canonicalize: bool = False):
     cr, sr = np.cos(roll/2), np.sin(roll/2)
     cp, sp = np.cos(pitch/2), np.sin(pitch/2)
     cy, sy = np.cos(yaw/2), np.sin(yaw/2)
-
-    return np.array([
+    q = np.array([
         cr*cp*cy + sr*sp*sy,
         sr*cp*cy - cr*sp*sy,
         cr*sp*cy + sr*cp*sy,
         cr*cp*sy - sr*sp*cy
     ])
+    if canonicalize: return q if q[0] >= 0 else -q
+    else: return q
 
 
-def rotation_matrix_to_quaternion(R):
+def rotation_matrix_to_quaternion(R, canonicalize: bool = False):
     trace = R[0, 0] + R[1, 1] + R[2, 2]
-
     if trace > 0:
         s = 0.5 / np.sqrt(trace + 1.0)
         w = 0.25 / s
@@ -41,8 +41,10 @@ def rotation_matrix_to_quaternion(R):
         x = (R[0, 2] + R[2, 0]) / s
         y = (R[1, 2] + R[2, 1]) / s
         z = 0.25 * s
-
-    return np.array([w, x, y, z]) / np.linalg.norm([w, x, y, z])
+    q = np.array([w, x, y, z])
+    q = q / np.linalg.norm(q)
+    if canonicalize: return q if q[0] >= 0 else -q
+    else: return q
 
 
 def euler_to_rotation_matrix(roll, pitch, yaw):

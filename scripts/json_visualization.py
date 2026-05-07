@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, ".")
+
 import pandas as pd
 import json
 import numpy as np

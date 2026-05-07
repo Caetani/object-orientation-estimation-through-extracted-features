@@ -1,0 +1,11 @@
+{
+    "dataset": {
+        "train_data_dir": "/mnt/d/Datasets/linemod/lm_train/train",
+        "test_data_dir": "/mnt/d/Datasets/linemod/lm_test_bop19/test",
+        "images_folder": "rgb",
+        "mask_folder": "mask",
+        "scene_gt": "scene_gt.json",
+        "scene_camera": "scene_camera.json",
+        "scene_gt_info": "scene_gt_info.json"
+    }
+}
