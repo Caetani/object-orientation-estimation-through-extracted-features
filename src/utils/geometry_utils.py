@@ -93,9 +93,10 @@ def mask_ellipse_axes(
         mode=cv2.RETR_EXTERNAL,
         method=cv2.CHAIN_APPROX_TC89_KCOS
     )
-    if len(contours[0]) < 5:
+    largest_contour = max(contours, key=len)
+    if len(largest_contour) < 5:
         raise ValueError("Contorno com menos de 5 pontos: impossível ajustar elipse.")
-    ellipse = cv2.fitEllipse(contours[0])
+    ellipse = cv2.fitEllipse(largest_contour)
     (cx, cy), (minor_axis, major_axis), angle_deg = ellipse
 
     major_axis /= 2
