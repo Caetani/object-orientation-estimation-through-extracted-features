@@ -73,3 +73,13 @@ def quaternion_to_euler(q):
     pitch = np.arcsin(2*(w*y - z*x))
     yaw   = np.arctan2(2*(w*z + x*y), 1 - 2*(y**2 + z**2))
     return np.array([roll, pitch, yaw])
+
+
+def geodesic_error(q_true: np.ndarray, q_pred: np.ndarray) -> float:
+    """
+    Calcula o erro geodésico angular entre dois quaternions em graus.
+    Lida corretamente com a ambiguidade de sinal (q e -q).
+    """
+    q_pred_norm = q_pred / np.linalg.norm(q_pred)
+    dot = np.clip(np.abs(np.dot(q_true, q_pred_norm)), 0.0, 1.0)
+    return np.rad2deg(2 * np.arccos(dot))
