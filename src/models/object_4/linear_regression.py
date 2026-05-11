@@ -238,7 +238,8 @@ if __name__ == '__main__':
         fig, axes = plt.subplots(1, 3, figsize=(12, 4))
         color = colors_train if suffix == 'train' else colors_test
         for i, (ax, el) in enumerate(zip(axes, euler_labels)):
-            err  = euler_pred[:, i] - euler_true[:, i]
+            # Erro circular — limitado ao intervalo [-180°, 180°]
+            err  = ((euler_pred[:, i] - euler_true[:, i]) + 180) % 360 - 180
             rmse = np.sqrt(np.mean(err**2))
             ax.hist(err, bins=30, color=color, edgecolor='white', linewidth=0.4)
             ax.axvline(0,          color='black', linewidth=0.8, linestyle='--')
