@@ -19,6 +19,7 @@ if __name__ == '__main__':
     RBG_FOLDER = config['dataset']['images_folder']
 
     json_data = pd.read_excel('processed/train_json_data.xlsx')
+    json_data = json_data[json_data['object_id'] == 15]
 
     major_sin_arr = []
     counter = 0

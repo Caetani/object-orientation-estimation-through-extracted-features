@@ -89,7 +89,7 @@ def extrair_features(row, mask, rgb):
 
 
 if __name__ == '__main__':
-    SET = 'test'
+    SET = 'train'
     config   = load_config()
     DATA_DIR    = config['dataset'][f'{SET}_data_dir']
     MASK_FOLDER = config['dataset']['mask_folder']

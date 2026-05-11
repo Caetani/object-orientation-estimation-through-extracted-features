@@ -22,7 +22,7 @@ if __name__ == '__main__':
     scene_gt_info = config['dataset']['scene_gt_info']
 
     object_id = '000004'  # Camera
-    DATA_DIR  = os.path.join(config['dataset']['data_dir'], object_id)
+    DATA_DIR  = os.path.join(config['dataset']['train_data_dir'], object_id)
 
     mask_files = os.listdir(os.path.join(DATA_DIR, mask_folder))
 
