@@ -17,8 +17,6 @@ SEED        = 42
 MODELS_DIR  = 'models/decision_tree'
 DATA_PATH   = 'processed/splitted_train.xlsx'
 
-
-
 BEST_PARAMS = {
     'ccp_alpha':         0,
     'max_depth':         15,
@@ -75,14 +73,16 @@ if __name__ == '__main__':
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     def avaliar(X, y_true, label):
-        y_pred = pipeline.predict(X)
-        y_pred = y_pred / np.linalg.norm(y_pred, axis=1, keepdims=True)
-        y_norm = y_true / np.linalg.norm(y_true, axis=1, keepdims=True)
-        errors = np.array([geodesic_error(y_norm[i], y_pred[i]) for i in range(len(y_true))])
+        y_pred   = pipeline.predict(X)
+        y_pred   = y_pred / np.linalg.norm(y_pred, axis=1, keepdims=True)
+        y_norm   = y_true / np.linalg.norm(y_true, axis=1, keepdims=True)
+        errors   = np.array([geodesic_error(y_norm[i], y_pred[i]) for i in range(len(y_true))])
+        rmse_geo = np.sqrt(np.mean(errors**2))
         print(f'\n── {label} ──')
         print(f'Erro geodésico médio:   {errors.mean():.2f} graus')
         print(f'Erro geodésico mediano: {np.median(errors):.2f} graus')
         print(f'Erro geodésico std:     {errors.std():.2f} graus')
+        print(f'Erro geodésico RMSE:    {rmse_geo:.2f} graus')
         print(f'Erro geodésico mínimo:  {errors.min():.2f} graus')
         print(f'Erro geodésico máximo:  {errors.max():.2f} graus')
         return y_norm, y_pred, errors
@@ -121,11 +121,12 @@ if __name__ == '__main__':
         axes = axes.flatten()
         color = colors_train if suffix == 'train' else colors_test
         for i, (ax, ql) in enumerate(zip(axes, q_labels)):
-            err = y_pred[:, i] - y_true[:, i]
+            err  = y_pred[:, i] - y_true[:, i]
+            rmse = np.sqrt(np.mean(err**2))
             ax.hist(err, bins=30, color=color, edgecolor='white', linewidth=0.4)
             ax.axvline(0,          color='black', linewidth=0.8, linestyle='--')
             ax.axvline(err.mean(), color='red',   linewidth=1.0, linestyle='-',
-                       label=f'Média: {err.mean():.3f}')
+                       label=f'Média: {err.mean():.3f}\nDesvio padrão: {err.std():.3f}\nRMSE: {rmse:.3f}')
             ax.set_xlabel(f'Erro {ql}')
             ax.set_ylabel('Frequência')
             ax.legend(fontsize=9)
@@ -137,15 +138,17 @@ if __name__ == '__main__':
         print(f'Salvo: {path}')
 
     def plot_hist_geodesic(errors_tr, errors_te):
+        rmse_tr = np.sqrt(np.mean(errors_tr**2))
+        rmse_te = np.sqrt(np.mean(errors_te**2))
         fig, ax = plt.subplots(figsize=(7, 4))
         ax.hist(errors_tr, bins=30, color=colors_train, alpha=0.6,
                 edgecolor='white', linewidth=0.4, label='Treinamento')
         ax.hist(errors_te, bins=30, color=colors_test,  alpha=0.6,
                 edgecolor='white', linewidth=0.4, label='Teste')
         ax.axvline(errors_tr.mean(), color=colors_train, linewidth=1.2, linestyle='--',
-                   label=f'Média treino: {errors_tr.mean():.1f}°')
+                   label=f'Média treino: {errors_tr.mean():.1f}°  STD: {errors_tr.std():.1f}°  RMSE: {rmse_tr:.1f}°')
         ax.axvline(errors_te.mean(), color=colors_test,  linewidth=1.2, linestyle='--',
-                   label=f'Média teste: {errors_te.mean():.1f}°')
+                   label=f'Média teste: {errors_te.mean():.1f}°  STD: {errors_te.std():.1f}°  RMSE: {rmse_te:.1f}°')
         ax.set_xlabel('Erro geodésico angular (graus)')
         ax.set_ylabel('Frequência')
         ax.set_title('Distribuição do Erro Geodésico Angular')
@@ -189,17 +192,43 @@ if __name__ == '__main__':
         fig, axes = plt.subplots(1, 3, figsize=(12, 4))
         color = colors_train if suffix == 'train' else colors_test
         for i, (ax, el) in enumerate(zip(axes, euler_labels)):
-            err = euler_pred[:, i] - euler_true[:, i]
+            err  = euler_pred[:, i] - euler_true[:, i]
+            rmse = np.sqrt(np.mean(err**2))
             ax.hist(err, bins=30, color=color, edgecolor='white', linewidth=0.4)
             ax.axvline(0,          color='black', linewidth=0.8, linestyle='--')
             ax.axvline(err.mean(), color='red',   linewidth=1.0, linestyle='-',
-                       label=f'Média: {err.mean():.2f}°')
+                       label=f'Média: {err.mean():.2f}°\nDesvio padrão: {err.std():.2f}°\nRMSE: {rmse:.2f}°')
             ax.set_xlabel(f'Erro — {el}')
             ax.set_ylabel('Frequência')
             ax.legend(fontsize=9)
         fig.suptitle(f'Distribuição do Erro — Ângulos de Euler — {label}', fontsize=FONT_SIZE)
         plt.tight_layout()
         path = f'{RESULTS_DIR}/hist_euler_{suffix}.png'
+        plt.savefig(path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f'Salvo: {path}')
+
+    def plot_accuracy_threshold(errors_tr, errors_te):
+        """Taxa de acerto em função do threshold do erro geodésico."""
+        thresholds  = np.arange(1, 31)
+        accuracy_tr = [np.mean(errors_tr <= t) * 100 for t in thresholds]
+        accuracy_te = [np.mean(errors_te <= t) * 100 for t in thresholds]
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.plot(thresholds, accuracy_tr, color=colors_train, linewidth=2,
+                marker='o', markersize=4, label='Treinamento')
+        ax.plot(thresholds, accuracy_te, color=colors_test,  linewidth=2,
+                marker='o', markersize=4, label='Teste')
+        ax.set_xlabel('Threshold do erro geodésico (graus)')
+        ax.set_ylabel('Taxa de acerto (%)')
+        ax.set_title('Taxa de Acerto em Função do Threshold Geodésico')
+        ax.set_xlim(1, 30)
+        ax.set_ylim(0, 100)
+        ax.set_xticks(thresholds)
+        ax.grid(True, linewidth=0.4, alpha=0.6)
+        ax.legend(fontsize=9)
+        plt.tight_layout()
+        path = f'{RESULTS_DIR}/accuracy_threshold.png'
         plt.savefig(path, dpi=150, bbox_inches='tight')
         plt.close()
         print(f'Salvo: {path}')
@@ -213,6 +242,7 @@ if __name__ == '__main__':
     plot_euler_scatter(euler_test_true,  euler_test_pred,  'Teste',       'test')
     plot_euler_hist(euler_train_true, euler_train_pred, 'Treinamento', 'train')
     plot_euler_hist(euler_test_true,  euler_test_pred,  'Teste',       'test')
+    plot_accuracy_threshold(errors_train, errors_test)
 
     # ── Salva pipeline ────────────────────────────────────────────────────────
     joblib.dump(pipeline, f'{MODELS_DIR}/pipeline_obj{OBJECT_ID}.pkl')
