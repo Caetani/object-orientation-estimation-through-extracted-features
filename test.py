@@ -7,6 +7,8 @@ minor_sin_arr = []
 minor_cos_arr = []
 processed_sin_arr = []
 
+"Hardware implementation"
+
 for angle in range(0, 2*360+5, 5):
     major_angle = np.deg2rad(angle)
 
