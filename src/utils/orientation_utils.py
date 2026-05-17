@@ -76,9 +76,12 @@ def quaternion_to_euler(q):
 
 
 def geodesic_error(q_true: np.ndarray, q_pred: np.ndarray) -> float:
-    dot = np.array([np.dot(q_true[i], q_pred[i]) for i in range(len(q_true))])
-    dot = np.clip(np.abs(dot), 0.0, 1.0)
+    #dot = np.array([np.dot(q_true[i], q_pred[i]) for i in range(len(q_true))])
+    #dot = np.clip(np.abs(dot), 0.0, 1.0)
+    #return np.rad2deg(2 * np.arccos(dot))
+    dot = np.clip(np.abs(np.array([np.dot(q_true[i], q_pred[i]) for i in range(len(q_true))])), -1.0, 1.0)
     return np.rad2deg(2 * np.arccos(dot))
+    
 
 
 def normalize_quarternions(q_arr):
