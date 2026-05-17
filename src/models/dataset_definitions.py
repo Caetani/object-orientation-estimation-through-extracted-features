@@ -1,3 +1,21 @@
+OBJECT_NAMES = {
+    1:  'ape',
+    2:  'benchvise',
+    3:  'bowl',
+    4:  'cam',
+    5:  'cat',
+    6:  'cup',
+    7:  'can',
+    8:  'driller',
+    9:  'duck',
+    10: 'eggbox',
+    11: 'glue',
+    12: 'holepuncher',
+    13: 'iron',
+    14: 'lamp',
+    15: 'phone',
+}
+
 X_cols = [
     'compactness_ext', 
     'compactness_int', 

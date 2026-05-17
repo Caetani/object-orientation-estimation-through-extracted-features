@@ -1,0 +1,179 @@
+
+==================================================
+RAW DATASET ROTATION MATRIX
+==================================================
+
+R_dataset:
+[[ 1.  0.  0.]
+ [ 0. -1. -0.]
+ [ 0.  0. -1.]]
+
+========== CHECKING R_dataset ==========
+det(R_dataset) = 1.0
+
+R.T @ R:
+[[1. 0. 0.]
+ [0. 1. 0.]
+ [0. 0. 1.]]
+
+Orthogonality error:
+[[0. 0. 0.]
+ [0. 0. 0.]
+ [0. 0. 0.]]
+
+[OK] Proper rotation matrix
+
+========== AXES OF R_dataset ==========
+X axis -> [1. 0. 0.]
+Y axis -> [ 0. -1.  0.]
+Z axis -> [ 0.  0. -1.]
+
+==================================================
+STANDARD PIPELINE
+==================================================
+
+Quaternion:
+[0. 1. 0. 0.]
+
+Euler from R:
+Roll  =  180.000000 deg
+Pitch = -0.000000 deg
+Yaw   =  0.000000 deg
+
+Euler from q:
+Roll  =  180.000000 deg
+Pitch =  0.000000 deg
+Yaw   =  0.000000 deg
+
+========== COMPARING R_dataset vs R_reconstructed ==========
+
+Absolute difference:
+[[0. 0. 0.]
+ [0. 0. 0.]
+ [0. 0. 0.]]
+
+Max difference:
+0.0
+
+Frobenius norm:
+0.0
+
+==================================================
+TESTING TRANSPOSE
+==================================================
+
+R_transpose:
+[[ 1.  0.  0.]
+ [ 0. -1.  0.]
+ [ 0. -0. -1.]]
+
+Quaternion from transpose:
+[-0.  1.  0.  0.]
+
+Euler from transpose:
+Roll  =  180.000000 deg
+Pitch = -0.000000 deg
+Yaw   =  0.000000 deg
+
+========== COMPARING R_transpose vs R_T_reconstructed ==========
+
+Absolute difference:
+[[0. 0. 0.]
+ [0. 0. 0.]
+ [0. 0. 0.]]
+
+Max difference:
+0.0
+
+Frobenius norm:
+0.0
+
+==================================================
+TESTING BLENDER/OpenCV AXIS FIX
+==================================================
+
+R_fix:
+[[1. 0. 0.]
+ [0. 1. 0.]
+ [0. 0. 1.]]
+
+Quaternion from R_fix:
+[1. 0. 0. 0.]
+
+Euler from R_fix:
+Roll  =  0.000000 deg
+Pitch =  0.000000 deg
+Yaw   =  0.000000 deg
+
+========== COMPARING R_fix vs R_fix_reconstructed ==========
+
+Absolute difference:
+[[0. 0. 0.]
+ [0. 0. 0.]
+ [0. 0. 0.]]
+
+Max difference:
+0.0
+
+Frobenius norm:
+0.0
+
+==================================================
+TESTING TRANSPOSE + AXIS FIX
+==================================================
+
+R_both:
+[[1. 0. 0.]
+ [0. 1. 0.]
+ [0. 0. 1.]]
+
+Quaternion from R_both:
+[1. 0. 0. 0.]
+
+Euler from R_both:
+Roll  =  0.000000 deg
+Pitch =  0.000000 deg
+Yaw   =  0.000000 deg
+
+========== COMPARING R_both vs R_both_reconstructed ==========
+
+Absolute difference:
+[[0. 0. 0.]
+ [0. 0. 0.]
+ [0. 0. 0.]]
+
+Max difference:
+0.0
+
+Frobenius norm:
+0.0
+
+==================================================
+FINAL DIAGNOSTICS
+==================================================
+
+Interpretation guide:
+
+1. If:
+   R_dataset ~= R_reconstructed
+
+   then quaternion conversion is CORRECT.
+
+2. If transpose suddenly produces intuitive angles:
+   your dataset uses opposite transform direction.
+
+3. If axis fix suddenly produces intuitive angles:
+   Blender/OpenCV frame mismatch.
+
+4. If BOTH fixes are needed:
+   dataset stores:
+       object->camera
+   while your math assumes:
+       camera->object
+
+5. If ALL reconstructed matrices match originals,
+   but Euler angles still look wrong:
+
+   Then the issue is ONLY Euler convention ambiguity,
+   not quaternion or matrix conversion.
+

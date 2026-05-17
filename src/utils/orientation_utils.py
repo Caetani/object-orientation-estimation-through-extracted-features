@@ -76,10 +76,19 @@ def quaternion_to_euler(q):
 
 
 def geodesic_error(q_true: np.ndarray, q_pred: np.ndarray) -> float:
-    """
-    Calcula o erro geodésico angular entre dois quaternions em graus.
-    Lida corretamente com a ambiguidade de sinal (q e -q).
-    """
-    q_pred_norm = q_pred / np.linalg.norm(q_pred)
-    dot = np.clip(np.abs(np.dot(q_true, q_pred_norm)), 0.0, 1.0)
+    dot = np.array([np.dot(q_true[i], q_pred[i]) for i in range(len(q_true))])
+    dot = np.clip(np.abs(dot), 0.0, 1.0)
     return np.rad2deg(2 * np.arccos(dot))
+
+
+def normalize_quarternions(q_arr):
+    norms = np.linalg.norm(q_arr, axis=1, keepdims=True)
+    return q_arr / norms
+
+
+def wrap_angle(angle):
+    return np.arctan2(np.sin(angle), np.cos(angle))
+
+
+def angular_difference(a, b):
+    return wrap_angle(a - b)
