@@ -68,5 +68,5 @@ if __name__ == '__main__':
 
     for i, col in enumerate(['qw', 'qx', 'qy', 'qz']):
         proxy = SingleOutputRegressorProxy(model, i)
-        cmodel = emlearn.convert(proxy, kind='DecisionTreeRegressor', method='inline')
+        cmodel = emlearn.convert(proxy, kind='DecisionTreeRegressor', method='inline', dtype='float')
         cmodel.save(name=f'model_{col}', file=f'{MODELS_DIR}/model_{col}.h')
