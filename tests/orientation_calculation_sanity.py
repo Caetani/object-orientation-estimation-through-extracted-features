@@ -11,9 +11,8 @@ from src.models.dataset_definitions import OBJECT_NAMES
 
 config = load_config()
 
-DATA_DIR   = config['dataset']['train_data_dir']#'/mnt/d/Datasets/linemod/lm_train/train/'
+DATA_DIR   = config['dataset']['train_data_dir']
 OUTPUT_DIR = 'tests/results'
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'train_verification_json_data.xlsx')
 
 FLOAT_TOLERANCE = 1e-3
 
