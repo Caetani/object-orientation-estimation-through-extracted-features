@@ -146,7 +146,3 @@ def plot_hist_geodesic(errors_tr, errors_te, results_dir):
     plt.savefig(path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f'Salvo: {path}')
-
-
-def to_euler_deg(y_q):
-    return np.array([np.rad2deg(quaternion_to_euler(q)) for q in y_q])

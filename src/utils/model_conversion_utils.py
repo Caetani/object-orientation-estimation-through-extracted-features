@@ -1,0 +1,32 @@
+import emlearn
+import numpy as np
+
+class SingleOutputTreeProxy:
+    """
+    Wraps a multi-output sklearn Tree object, exposing only one output's
+    leaf values — without modifying the original tree or touching __setstate__.
+    """
+    def __init__(self, tree, output_idx):
+        self._tree = tree
+        self._output_idx = output_idx
+
+    def __getattr__(self, name):
+        if name == 'value':
+            return self._tree.value[:, self._output_idx:self._output_idx+1, :]
+        return getattr(self._tree, name)
+
+
+class SingleOutputRegressorProxy:
+    """
+    Wraps a multi-output DecisionTreeRegressor, replacing tree_ with the proxy.
+    """
+    def __init__(self, model, output_idx):
+        self._model = model
+        self.tree_ = SingleOutputTreeProxy(model.tree_, output_idx)
+        self.n_outputs_ = 1
+        self.n_features_in_ = model.n_features_in_
+
+    def __getattr__(self, name):
+        return getattr(self._model, name)
+
+

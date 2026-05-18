@@ -95,3 +95,6 @@ def wrap_angle(angle):
 
 def angular_difference(a, b):
     return wrap_angle(a - b)
+
+def to_euler_deg(y_q):
+    return np.array([np.rad2deg(quaternion_to_euler(q)) for q in y_q])

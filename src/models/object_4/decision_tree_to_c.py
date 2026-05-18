@@ -2,30 +2,26 @@ import sys
 sys.path.insert(0, ".")
 
 import emlearn
-import copy
+import joblib
 import os
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.model_selection import train_test_split
-
 
 from src.models.dataset_definitions import X_cols, y_cols
-from src.utils.model_evaluation_utils import *
+from src.utils.model_evaluation_utils import (
+    evaluate,
+    plot_euler_hist,
+    plot_accuracy_threshold,
+    plot_hist_geodesic,
+    quaternion_to_euler,
+)
+from src.utils.model_conversion_utils import *
 
 OBJECT_ID   = 4
-SEED        = 42
-MODELS_DIR  = 'models/decision_tree'
+MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree'
 DATA_PATH   = 'processed/splitted_train.xlsx'
-OUTPUT_DIR = 'results/decision_tree/test'
-
-""" BEST_PARAMS = {
-    'ccp_alpha':         0,
-    'max_depth':         15,
-    'max_features':      1.0,
-    'min_samples_leaf':  5,
-    'min_samples_split': 10,
-} """
+OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
 BEST_PARAMS = {
     'ccp_alpha':         0,
@@ -35,11 +31,13 @@ BEST_PARAMS = {
     'min_samples_split': 10,
 }
 
-
 if __name__ == '__main__':
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     df = pd.read_excel('processed/splitted_train_70_30.xlsx')
     df = df[df['object_id'] == OBJECT_ID]
-    df = df[(df['frame_id'] != 1277) & (df['frame_id'] != 1295)] # Frames with gimbal lock
+    #df = df[(df['frame_id'] != 1277) & (df['frame_id'] != 1295)] # Frames with gimbal lock (yaw == roll, pitch at +/- 90 deg)
     
     df_train = df[df['set'] == 'train']
     df_test = df[df['set'] == 'test']
@@ -66,22 +64,9 @@ if __name__ == '__main__':
     plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
     plot_hist_geodesic(errors_train, errors_test, OUTPUT_DIR)
 
-    # Convert model using emlearn
-    """ path = f'{MODELS_DIR}/decision_tree.h'
-    cmodel = emlearn.convert(model, method='inline')
-    cmodel.save(file=path, name='decision_tree')
-    print('Wrote model to', path) """
-
-    def extract_single_output(multi_output_tree, output_idx):
-        """Clone a multi-output tree as if it had only one output."""
-        single = copy.deepcopy(multi_output_tree)
-        # tree_.value shape: (n_nodes, n_outputs, max_n_classes)
-        single.tree_.value = single.tree_.value[:, output_idx:output_idx+1, :]
-        single.n_outputs_ = 1
-        single.n_output_features_ = 1  # may not exist, safe to ignore if AttributeError
-        return single
+    joblib.dump(model, f"{MODELS_DIR}/model.pkl")
 
     for i, col in enumerate(['qw', 'qx', 'qy', 'qz']):
-        single_tree = extract_single_output(model, i)
-        cmodel = emlearn.convert(single_tree, method='inline')
-        cmodel.save(f'{MODELS_DIR}/model_{col}.h')
+        proxy = SingleOutputRegressorProxy(model, i)
+        cmodel = emlearn.convert(proxy, kind='DecisionTreeRegressor', method='inline')
+        cmodel.save(name=f'model_{col}', file=f'{MODELS_DIR}/model_{col}.h')
