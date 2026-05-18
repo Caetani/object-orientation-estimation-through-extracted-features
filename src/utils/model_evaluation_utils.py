@@ -21,6 +21,7 @@ def calculate_rmse(y_pred, y_true):
 
 def evaluate(model, X, y_true, label):
     y_pred   = model.predict(X)
+    print(f"Shape do y_pred: {np.shape(y_pred), type(y_pred)}")
     y_pred   = normalize_quarternions(y_pred)
     y_norm   = normalize_quarternions(y_true)
     geodesic_errors   = geodesic_error(y_norm, y_pred)
