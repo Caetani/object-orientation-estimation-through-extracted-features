@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.utils.orientation_utils import geodesic_error, normalize_quarternions
+from src.utils.orientation_utils import *
 
 
 q_labels     = [r'$q_w$', r'$q_x$', r'$q_y$', r'$q_z$']
@@ -61,7 +61,7 @@ def plot_euler_hist(euler_true, euler_pred, label, suffix, results_dir):
     color = set_colors[suffix]
     for i, (ax, el) in enumerate(zip(axes, euler_labels)):
         # Erro circular — limitado ao intervalo [-180°, 180°]
-        err  = ((euler_pred[:, i] - euler_true[:, i]) + 180) % 360 - 180
+        err  = np.rad2deg(angular_difference(euler_pred[:, i], euler_true[:, i])) #((euler_pred[:, i] - euler_true[:, i]) + 180) % 360 - 180
         rmse = np.sqrt(np.mean(err**2))
         ax.hist(err, bins=30, color=color, edgecolor='white', linewidth=0.4)
         ax.axvline(0,          color='black', linewidth=0.8, linestyle='--')
@@ -101,3 +101,51 @@ def plot_accuracy_threshold(errors_tr, errors_te, results_dir):
     plt.savefig(path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f'Salvo: {path}')
+
+
+def plot_hist_components(y_true, y_pred, label, suffix, results_dir):
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    axes = axes.flatten()
+    color = set_colors[suffix]
+    for i, (ax, ql) in enumerate(zip(axes, q_labels)):
+        err  = y_pred[:, i] - y_true[:, i]
+        rmse = np.sqrt(np.mean(err**2))
+        ax.hist(err, bins=30, color=color, edgecolor='white', linewidth=0.4)
+        ax.axvline(0,          color='black', linewidth=0.8, linestyle='--')
+        ax.axvline(err.mean(), color='red',   linewidth=1.0, linestyle='-',
+                   label=f'Média: {err.mean():.3f}\nDesvio padrão: {err.std():.3f}\nRMSE: {rmse:.3f}')
+        ax.set_xlabel(f'Erro {ql}')
+        ax.set_ylabel('Frequência')
+        ax.legend(fontsize=9)
+    fig.suptitle(f'Distribuição do Erro por Componente do Quaternion — {label}', fontsize=FONT_SIZE)
+    plt.tight_layout()
+    path = f'{results_dir}/hist_components_{suffix}.png'
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'Salvo: {path}')
+
+def plot_hist_geodesic(errors_tr, errors_te, results_dir):
+    rmse_tr = np.sqrt(np.mean(errors_tr**2))
+    rmse_te = np.sqrt(np.mean(errors_te**2))
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.hist(errors_tr, bins=30, color=set_colors['train'], alpha=0.6,
+            edgecolor='white', linewidth=0.4, label='Treinamento')
+    ax.hist(errors_te, bins=30, color=set_colors['test'],  alpha=0.6,
+            edgecolor='white', linewidth=0.4, label='Teste')
+    ax.axvline(errors_tr.mean(), color=set_colors['train'], linewidth=1.2, linestyle='--',
+               label=f'Média treino: {errors_tr.mean():.1f}°  STD: {errors_tr.std():.1f}°  RMSE: {rmse_tr:.1f}°')
+    ax.axvline(errors_te.mean(), color=set_colors['test'],  linewidth=1.2, linestyle='--',
+               label=f'Média teste: {errors_te.mean():.1f}°  STD: {errors_te.std():.1f}°  RMSE: {rmse_te:.1f}°')
+    ax.set_xlabel('Erro geodésico angular (graus)')
+    ax.set_ylabel('Frequência')
+    ax.set_title('Distribuição do Erro Geodésico Angular')
+    ax.legend(fontsize=9)
+    plt.tight_layout()
+    path = f'{results_dir}/hist_geodesic.png'
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'Salvo: {path}')
+
+
+def to_euler_deg(y_q):
+    return np.array([np.rad2deg(quaternion_to_euler(q)) for q in y_q])

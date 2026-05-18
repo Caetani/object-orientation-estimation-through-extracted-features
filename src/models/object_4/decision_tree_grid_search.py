@@ -12,25 +12,33 @@ from src.models.dataset_definitions import X_cols, y_cols
 
 OBJECT_ID  = 4
 SEED       = 42
-K_FOLDS    = 20
+K_FOLDS    = 10
 ALPHA      = 0.05   # nível de significância
-MIN_POWER  = 0.75   # potência mínima desejada
+MIN_POWER  = 0.8   # potência mínima desejada
 
-PARAM_GRID = {
+""" PARAM_GRID = {
     'estimator__max_depth':        [3, 5, 7, 10, 12, 15, 17, 20],
     'estimator__min_samples_split':[10, 20, 50],
     'estimator__min_samples_leaf': [5, 10, 20],
     'estimator__max_features':     [0.5, 0.7, 1.0],
     'estimator__ccp_alpha':        [0.0, 0.001, 0.005, 0.01, 0.05],
+} """
+
+PARAM_GRID = {
+    'max_depth':        [3, 5, 7, 9, 11, 13, 15],
+    'min_samples_split':[5, 10, 20, 50],
+    'min_samples_leaf': [2, 3, 5, 10, 20],
+    #'max_features':     [0.5, 0.7, 1.0],
+    'ccp_alpha':        [0.0, 0.00001, 0.0001, 0.001],
 }
 
 
 def complexidade(params):
     """Métrica de complexidade da árvore — menor é mais simples."""
     return (
-        params['estimator__max_depth']
-        - params['estimator__min_samples_split'] / 10
-        - params['estimator__min_samples_leaf']  / 5
+        params['max_depth']
+        - params['min_samples_split'] / 10
+        - params['min_samples_leaf']  / 5
     )
 
 
@@ -80,21 +88,25 @@ def calcular_potencia(scores_a, scores_b, alpha=0.05):
 
 
 if __name__ == '__main__':
-    df = pd.read_excel('processed/splitted_train.xlsx')
+    df = pd.read_excel('processed/splitted_train_70_30.xlsx')
     df = df[df['object_id'] == OBJECT_ID]
 
     train_df = df[df['set'] == 'train'].reset_index(drop=True)
     test_df  = df[df['set'] == 'test'].reset_index(drop=True)
 
-    X_train = train_df[X_cols].values
-    y_train = train_df[y_cols].values
-    X_test  = test_df[X_cols].values
-    y_test  = test_df[y_cols].values
-
+    X_train = train_df[X_cols]
+    X_test  = test_df[X_cols]
     print(f'Amostras de treino: {len(X_train)} | Amostras de teste: {len(X_test)}')
 
-    base_model = DecisionTreeRegressor(random_state=SEED)
-    model      = MultiOutputRegressor(base_model)
+    
+
+    y_train = train_df[y_cols].values
+    y_test  = test_df[y_cols].values
+
+
+    #base_model = DecisionTreeRegressor(random_state=SEED)
+    #model      = MultiOutputRegressor(base_model)
+    model = DecisionTreeRegressor(random_state=SEED)
 
     grid_search = GridSearchCV(
         estimator=model,
@@ -111,6 +123,7 @@ if __name__ == '__main__':
 
     # ── Seleção do modelo mais simples com potência >= MIN_POWER ─────────────
     cv_results  = pd.DataFrame(grid_search.cv_results_)
+    cv_results.to_excel("Grid search.xlsx")
     split_cols  = [f'split{i}_test_score' for i in range(K_FOLDS)]
     best_idx    = grid_search.best_index_
     mu_best     = cv_results.loc[best_idx, 'mean_test_score']
@@ -155,9 +168,10 @@ if __name__ == '__main__':
 
     # ── Retreina o modelo selecionado em todo o conjunto de treino ────────────
     simple_params = {k.replace('estimator__', ''): v for k, v in params_simples.items()}
-    simple_model  = MultiOutputRegressor(
-        DecisionTreeRegressor(random_state=SEED, **simple_params)
-    )
+    #simple_model  = MultiOutputRegressor(
+    #    DecisionTreeRegressor(random_state=SEED, **simple_params)
+    #)
+    simple_model = DecisionTreeRegressor(**simple_params)
     simple_model.fit(X_train, y_train)
 
     # ── Avaliação no conjunto de teste ────────────────────────────────────────
@@ -165,7 +179,7 @@ if __name__ == '__main__':
     y_pred      = y_pred / np.linalg.norm(y_pred, axis=1, keepdims=True)
     y_test_norm = y_test / np.linalg.norm(y_test, axis=1, keepdims=True)
 
-    errors = np.array([geodesic_error(y_test_norm[i], y_pred[i]) for i in range(len(y_test))])
+    errors = geodesic_error(y_test_norm, y_pred)
 
     print(f'\n── Resultados no conjunto de teste (objeto {OBJECT_ID}) ──')
     print(f'Erro geodésico médio:   {errors.mean():.2f} graus')
