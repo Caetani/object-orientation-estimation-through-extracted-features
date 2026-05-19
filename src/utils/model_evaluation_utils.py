@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import make_scorer
 
 from src.utils.orientation_utils import *
 
@@ -146,3 +147,9 @@ def plot_hist_geodesic(errors_tr, errors_te, results_dir):
     plt.savefig(path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f'Salvo: {path}')
+
+def geodesic_rmse_score_func(y, y_pred, **kwargs):
+    return np.mean(geodesic_error(q_true=y, q_pred=y_pred)) #np.sqrt(np.mean(geodesic_error(q_true=y, q_pred=y_pred)**2))
+
+
+geodesic_rmse_scorer = make_scorer(geodesic_rmse_score_func, greater_is_better=False)

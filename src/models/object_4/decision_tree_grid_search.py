@@ -25,19 +25,28 @@ MIN_POWER  = 0.75   # potência mínima desejada
     'estimator__ccp_alpha':        [0.0, 0.001, 0.005, 0.01, 0.05],
 } """
 
-PARAM_GRID = {
+""" PARAM_GRID = {
     'max_depth':        [3, 5, 7, 9, 11, 13, 15],
     'min_samples_split':[5, 10, 20, 50],
     'min_samples_leaf': [2, 3, 5, 10, 20],
     #'max_features':     [0.5, 0.7, 1.0],
     'ccp_alpha':        [0.0, 0.00001, 0.0001],
+} """
+
+
+PARAM_GRID = {
+    'max_depth':        list(np.arange(1, 21, 2)),
+    'min_samples_split': list(np.arange(0, 51, 5)),
+    'min_samples_leaf': list(np.arange(2, 21, 4)),
+    #'max_features':     [0.5, 0.7, 1.0],
+    #'ccp_alpha':        [0.0, 0.00001, 0.0001, 0.001, 0.01],
 }
 
 
 def complexidade(params):
     """Métrica de complexidade da árvore — menor é mais simples."""
     return (
-        params['max_depth']
+        params['max_depth'] 
         - params['min_samples_split'] / 10
         - params['min_samples_leaf']  / 5
     )
@@ -109,10 +118,10 @@ if __name__ == '__main__':
     grid_search = GridSearchCV(
         estimator=model,
         param_grid=PARAM_GRID,
-        scoring='neg_root_mean_squared_error',
+        scoring=geodesic_rmse_scorer, #'neg_root_mean_squared_error',
         cv=K_FOLDS,
         n_jobs=-1,
-        verbose=2,
+        verbose=0,
         #refit=True,
     )
 
@@ -169,7 +178,7 @@ if __name__ == '__main__':
     simple_model.fit(X_train, y_train)
 
     evaluate(simple_model, X_train, y_train, label='Train')
-    evaluate(simple_model, X_test, y_test, label='Test')
+    #evaluate(simple_model, X_test, y_test, label='Test')
 
     # ── Avaliação no conjunto de teste ────────────────────────────────────────
     """ y_pred      = simple_model.predict(X_test)
