@@ -1,13 +1,14 @@
 import sys
 sys.path.insert(0, ".")
 
-import emlearn
 import joblib
 import os
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.model_selection import cross_validate, GridSearchCV
+from sklearn.model_selection import GridSearchCV
+import gc
+import matplotlib.pyplot as plt
 
 from src.models.dataset_definitions import X_cols, y_cols
 from src.utils.model_evaluation_utils import (
@@ -18,21 +19,21 @@ from src.utils.model_evaluation_utils import (
     quaternion_to_euler,
     geodesic_rmse_scorer
 )
-from src.utils.model_conversion_utils import *
-
+from src.utils.model_conversion_utils import convert_model
 
 
 if __name__ == '__main__':
     K_FOLDS = 10
-    OBJECT_IDS = [4]
-    SPLIT = '80_20'
+    OBJECT_IDS = list(np.arange(1, 16, 1))
+    SPLIT = '70_30'
     
     PARAMS = {}
     
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
+    original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)] # Gimbal lock (Pitch = 90% - Yaw == Roll)
 
     for OBJECT_ID in OBJECT_IDS:
-        print(f"Finding model for object {OBJECT_ID}...")
+        print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
         MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
@@ -56,7 +57,7 @@ if __name__ == '__main__':
         alphas, impurities = path.ccp_alphas, path.impurities
 
         PARAM_GRID = {
-            'ccp_alpha': alphas,
+            'ccp_alpha': alphas
         }
 
         grid_search = GridSearchCV(
@@ -75,6 +76,7 @@ if __name__ == '__main__':
 
         best_model = grid_search.best_estimator_
         joblib.dump(best_model, f'{MODELS_DIR}/model.pkl')
+        convert_model(best_model, MODELS_DIR)
 
         y_train_norm, y_pred_train, errors_train = evaluate(best_model, X_train, y_train, "Training set")
         y_test_norm,  y_pred_test,  errors_test  = evaluate(best_model, X_test, y_test, "Testing set")
@@ -89,5 +91,8 @@ if __name__ == '__main__':
         plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
         plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
         plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")
+
+        plt.close('all')  # fecha todas as figuras abertas
+        gc.collect()      # força o garbage collector a liberar a memória
 
     print(f"End of Execution.")

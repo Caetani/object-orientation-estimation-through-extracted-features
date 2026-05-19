@@ -29,4 +29,8 @@ class SingleOutputRegressorProxy:
     def __getattr__(self, name):
         return getattr(self._model, name)
 
-
+def convert_model(model, save_dir):
+    for i, col in enumerate(['qw', 'qx', 'qy', 'qz']):
+        proxy = SingleOutputRegressorProxy(model, i)
+        cmodel = emlearn.convert(proxy, kind='DecisionTreeRegressor', method='inline', dtype='float')
+        cmodel.save(name=f'model_{col}', file=f'{save_dir}/model_{col}.h')
