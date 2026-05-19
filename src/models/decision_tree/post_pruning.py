@@ -1,0 +1,93 @@
+import sys
+sys.path.insert(0, ".")
+
+import emlearn
+import joblib
+import os
+import numpy as np
+import pandas as pd
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import cross_validate, GridSearchCV
+
+from src.models.dataset_definitions import X_cols, y_cols
+from src.utils.model_evaluation_utils import (
+    evaluate,
+    plot_euler_hist,
+    plot_accuracy_threshold,
+    plot_hist_geodesic,
+    quaternion_to_euler,
+    geodesic_rmse_scorer
+)
+from src.utils.model_conversion_utils import *
+
+
+
+if __name__ == '__main__':
+    K_FOLDS = 10
+    OBJECT_IDS = [4]
+    SPLIT = '80_20'
+    
+    PARAMS = {}
+    
+    original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
+
+    for OBJECT_ID in OBJECT_IDS:
+        print(f"Finding model for object {OBJECT_ID}...")
+
+        MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}'
+        OUTPUT_DIR = f'{MODELS_DIR}/performance'
+
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+        df_train = original_df[(original_df['set'] == 'train') & (original_df['object_id'] == OBJECT_ID)]
+        df_test = original_df[(original_df['set'] == 'test') & (original_df['object_id'] == OBJECT_ID)]
+
+        X_train = df_train[X_cols]
+        y_train = df_train[y_cols].values
+
+        X_test = df_test[X_cols]
+        y_test = df_test[y_cols].values
+
+        model = DecisionTreeRegressor(**PARAMS)
+        model.fit(X_train, y_train)
+
+        path = model.cost_complexity_pruning_path(X_train, y_train)
+        alphas, impurities = path.ccp_alphas, path.impurities
+
+        PARAM_GRID = {
+            'ccp_alpha': alphas,
+        }
+
+        grid_search = GridSearchCV(
+            estimator=DecisionTreeRegressor(**PARAMS),
+            param_grid=PARAM_GRID,
+            cv=K_FOLDS,
+            scoring=geodesic_rmse_scorer,
+            n_jobs=4,
+            verbose=1
+        )
+        grid_search.fit(X_train, y_train)
+
+        cv_results  = pd.DataFrame(grid_search.cv_results_)
+        cv_results.sort_values(by=['rank_test_score'], ascending=True, inplace=True)
+        cv_results.to_excel(f'{MODELS_DIR}/grid_search_results.xlsx', index=False)
+
+        best_model = grid_search.best_estimator_
+        joblib.dump(best_model, f'{MODELS_DIR}/model.pkl')
+
+        y_train_norm, y_pred_train, errors_train = evaluate(best_model, X_train, y_train, "Training set")
+        y_test_norm,  y_pred_test,  errors_test  = evaluate(best_model, X_test, y_test, "Testing set")
+
+        euler_train_true = np.array([quaternion_to_euler(_q) for _q in y_train_norm])
+        euler_train_pred = np.array([quaternion_to_euler(_q) for _q in y_pred_train])
+        euler_test_true  = np.array([quaternion_to_euler(_q) for _q in y_test_norm])
+        euler_test_pred  = np.array([quaternion_to_euler(_q) for _q in y_pred_test])
+
+        plot_euler_hist(euler_train_true, euler_train_pred, 'Train', 'train', OUTPUT_DIR)
+        plot_euler_hist(euler_test_true, euler_test_pred, 'Test', 'test', OUTPUT_DIR)
+        plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
+        plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
+        plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")
+
+    print(f"End of Execution.")

@@ -21,7 +21,7 @@ from src.utils.model_evaluation_utils import (
 from src.utils.model_conversion_utils import *
 
 K_FOLDS = 10
-OBJECT_ID   = 4
+OBJECT_ID   = 1
 MODELS_DIR  = f'test/models/object_{OBJECT_ID}/decision_tree'
 DATA_PATH   = 'processed/splitted_train.xlsx'
 OUTPUT_DIR = f'{MODELS_DIR}/performance'
@@ -29,7 +29,7 @@ OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
 PARAMS = {}
 
-criterion_arr = ["squared_error", "friedman_mse", "absolute_error", "poisson"]
+criterion_arr = ["squared_error"]
 
 
 if __name__ == '__main__':

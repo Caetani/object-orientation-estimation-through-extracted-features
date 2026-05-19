@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import make_scorer
 
+import sys
+sys.path.insert(0, ".")
+
 from src.utils.orientation_utils import *
 
 
@@ -126,7 +129,8 @@ def plot_hist_components(y_true, y_pred, label, suffix, results_dir):
     plt.close()
     print(f'Salvo: {path}')
 
-def plot_hist_geodesic(errors_tr, errors_te, results_dir):
+
+def old_plot_hist_geodesic(errors_tr, errors_te, results_dir):
     rmse_tr = np.sqrt(np.mean(errors_tr**2))
     rmse_te = np.sqrt(np.mean(errors_te**2))
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -148,8 +152,27 @@ def plot_hist_geodesic(errors_tr, errors_te, results_dir):
     plt.close()
     print(f'Salvo: {path}')
 
+def plot_hist_geodesic(geodesic_errors, results_dir, suffix, label):
+    rmse = np.sqrt(np.mean(geodesic_errors**2))
+    fig, ax = plt.subplots(figsize=(7, 4))
+    color = set_colors[suffix]
+    ax.hist(geodesic_errors, bins=30, color=color, alpha=0.6,
+            edgecolor='white', linewidth=0.4, label=label)
+    ax.axvline(geodesic_errors.mean(), color=color, linewidth=1.2, linestyle='--',
+               label=f'Média: {geodesic_errors.mean():.1f}°  STD: {geodesic_errors.std():.1f}°  RMSE: {rmse:.1f}°')
+    ax.set_xlabel('Erro geodésico angular (graus)')
+    ax.set_ylabel('Frequência')
+    ax.set_title('Distribuição do Erro Geodésico Angular')
+    ax.legend(fontsize=9)
+    plt.tight_layout()
+    path = f'{results_dir}/{suffix}_hist_geodesic.png'
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'Salvo: {path}')
+
+
 def geodesic_rmse_score_func(y, y_pred, **kwargs):
-    return np.mean(geodesic_error(q_true=y, q_pred=y_pred)) #np.sqrt(np.mean(geodesic_error(q_true=y, q_pred=y_pred)**2))
+    return np.sqrt(np.mean(geodesic_error(q_true=y, q_pred=y_pred)**2))
 
 
 geodesic_rmse_scorer = make_scorer(geodesic_rmse_score_func, greater_is_better=False)
