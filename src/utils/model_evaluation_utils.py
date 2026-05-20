@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import make_scorer
+from scipy import stats
 
 import sys
 sys.path.insert(0, ".")
@@ -176,3 +177,114 @@ def geodesic_rmse_score_func(y, y_pred, **kwargs):
 
 
 geodesic_rmse_scorer = make_scorer(geodesic_rmse_score_func, greater_is_better=False)
+ 
+def ttest_two_sample(
+    mean1: float,
+    mean2: float,
+    std1: float,
+    std2: float,
+    n1: int,
+    n2: int,
+    alpha: float = 0.05,
+    test_type: str = "bilateral",
+) -> dict:
+    """
+    Teste t de Welch para duas amostras independentes com variâncias distintas.
+ 
+    Retorna
+    -------
+    dict com:
+        t_stat   : estatística t amostral
+        df       : graus de liberdade (Welch-Satterthwaite)
+        p_value  : valor p do teste
+        t_crit   : valor(es) crítico(s) de t
+        power    : potência do teste (1 - β)
+        beta     : probabilidade de erro tipo II
+        reject   : bool — rejeita H₀ ao nível alpha?
+    """
+    test_type = test_type.lower()
+    if test_type not in ("lower", "greater", "bilateral"):
+        raise ValueError("test_type deve ser 'lower', 'greater' ou 'bilateral'.")
+ 
+    # ------------------------------------------------------------------ #
+    # 1. Estatística t e graus de liberdade (aproximação de Welch)        #
+    # ------------------------------------------------------------------ #
+    se = np.sqrt(std1**2 / n1 + std2**2 / n2)   # erro padrão da diferença
+    t_stat = (mean1 - mean2) / se
+ 
+    # Graus de liberdade de Welch-Satterthwaite
+    num   = (std1**2 / n1 + std2**2 / n2) ** 2
+    denom = (std1**2 / n1) ** 2 / (n1 - 1) + (std2**2 / n2) ** 2 / (n2 - 1)
+    df    = num / denom
+ 
+    t_dist = stats.t(df)
+ 
+    # ------------------------------------------------------------------ #
+    # 2. Valor P                                                          #
+    # ------------------------------------------------------------------ #
+    if test_type == "lower":
+        # H₁: µ₁ < µ₂  →  rejeita quando t_stat << 0
+        p_value = t_dist.cdf(t_stat)
+    elif test_type == "greater":
+        # H₁: µ₁ > µ₂  →  rejeita quando t_stat >> 0
+        p_value = t_dist.sf(t_stat)          # sf = 1 − cdf
+    else:
+        # bilateral  →  rejeita nas duas caudas
+        p_value = 2 * t_dist.sf(abs(t_stat))
+ 
+    # ------------------------------------------------------------------ #
+    # 3. Valor(es) crítico(s)                                             #
+    # ------------------------------------------------------------------ #
+    if test_type == "lower":
+        t_crit = t_dist.ppf(alpha)           # negativo
+    elif test_type == "greater":
+        t_crit = t_dist.ppf(1 - alpha)      # positivo
+    else:
+        t_crit = t_dist.ppf(1 - alpha / 2)  # valor absoluto; rejeita em ±t_crit
+ 
+    # ------------------------------------------------------------------ #
+    # 4. Potência — Abordagem 1 (t central recentrada)                    #
+    #                                                                     #
+    # O deslocamento observado em unidades de erro padrão é t_stat.       #
+    # Para cada tipo de teste, c* = limite crítico deslocado pela         #
+    # diferença de médias observada.                                      #
+    #                                                                     #
+    # Sob H₁ verdadeiro (diferença = mean1 − mean2):                      #
+    #   T' = (X̄₁ − X̄₂ − (mean1 − mean2)) / se  ~  t(df)                 #
+    # Rejeição ocorre quando T cai na região crítica original, o que      #
+    # equivale a T' cruzar o limite deslocado por t_stat.                 #
+    # ------------------------------------------------------------------ #
+    if test_type == "lower":
+        # região de rejeição: T < t_crit
+        # sob H₁: P(T' < t_crit − t_stat)
+        c_star  = t_crit - t_stat
+        power   = t_dist.cdf(c_star)
+        beta    = 1 - power
+ 
+    elif test_type == "greater":
+        # região de rejeição: T > t_crit
+        # sob H₁: P(T' > t_crit − t_stat)
+        c_star  = t_crit - t_stat
+        power   = t_dist.sf(c_star)
+        beta    = 1 - power
+ 
+    else:
+        # bilateral: região de rejeição T < −t_crit  ou  T > +t_crit
+        # sob H₁:
+        #   poder = P(T' < −t_crit − t_stat) + P(T' > +t_crit − t_stat)
+        c_left  = -t_crit - t_stat
+        c_right =  t_crit - t_stat
+        power   = t_dist.cdf(c_left) + t_dist.sf(c_right)
+        beta    = 1 - power
+ 
+    reject = p_value <= alpha
+ 
+    return {
+        "t_stat" : round(t_stat,  4),
+        "df"     : round(df,      2),
+        "p_value": round(p_value, 6),
+        "t_crit" : round(t_crit,  4),
+        "power"  : round(power,   6),
+        "beta"   : round(beta,    6),
+        "reject" : reject,
+    }

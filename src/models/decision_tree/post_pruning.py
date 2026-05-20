@@ -24,7 +24,7 @@ from src.utils.model_conversion_utils import convert_model
 
 if __name__ == '__main__':
     K_FOLDS = 10
-    OBJECT_IDS = list(np.arange(1, 16, 1))
+    OBJECT_IDS = [4]#list(np.arange(1, 16, 1))
     SPLIT = '70_30'
     
     PARAMS = {}
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}'
+        MODELS_DIR  = f'test_comparison/models/object_{OBJECT_ID}/decision_tree_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -72,9 +72,27 @@ if __name__ == '__main__':
 
         cv_results  = pd.DataFrame(grid_search.cv_results_)
         cv_results.sort_values(by=['rank_test_score'], ascending=True, inplace=True)
+        cv_results.reset_index(inplace=True)
         cv_results.to_excel(f'{MODELS_DIR}/grid_search_results.xlsx', index=False)
 
-        best_model = grid_search.best_estimator_
+        mean_score_best = cv_results.loc[0, 'mean_test_score']
+        std_score_best = cv_results.loc[0, 'std_test_score']
+        threshold = mean_score_best - (std_score_best / np.sqrt(K_FOLDS))
+
+        
+
+        filtered_results = cv_results[cv_results['mean_test_score'] > threshold]
+        filtered_results.sort_values(by=['param_ccp_alpha'], ascending=False, inplace=True)
+        filtered_results.reset_index(inplace=True)
+
+        best_model_params = filtered_results.loc[0, 'params']
+        best_model = DecisionTreeRegressor(**best_model_params)
+        best_model.fit(X_train, y_train)
+
+        print(f"Best model = {grid_search.best_params_}")
+        print(f"Selected model = {best_model_params}")
+
+        #best_model = grid_search.best_estimator_
         joblib.dump(best_model, f'{MODELS_DIR}/model.pkl')
         convert_model(best_model, MODELS_DIR)
 
