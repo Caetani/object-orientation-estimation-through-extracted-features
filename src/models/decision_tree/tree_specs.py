@@ -22,5 +22,10 @@ if __name__ == '__main__':
     filtered_results = cv_results[cv_results['mean_test_score'] > threshold]
     filtered_results.sort_values
 
-    plt.plot(np.log10(filtered_results['param_ccp_alpha'].values), 'bx')
-    plt.show()
+    #plt.plot(np.log10(filtered_results['param_ccp_alpha'].values), 'bx')
+    plt.plot(cv_results['param_ccp_alpha'].values, -cv_results['mean_test_score'].values, 'b.-')
+    plt.ylabel("RMSE Médio do\nErro Geodésico (graus)")
+    plt.xlabel(f"Parâmetro de Complexidade")
+    plt.title("RMSE médio do erro geodésio\npara o conjunto treinamento (K=10)")
+    plt.savefig(f"{MODEL_DIR}/ccp_performance_effect.png")
+    #plt.show()

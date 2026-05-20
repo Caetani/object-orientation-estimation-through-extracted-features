@@ -9,6 +9,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import GridSearchCV
 import gc
 import matplotlib.pyplot as plt
+from scipy import stats
 
 from src.models.dataset_definitions import X_cols, y_cols
 from src.utils.model_evaluation_utils import (
@@ -75,24 +76,7 @@ if __name__ == '__main__':
         cv_results.reset_index(inplace=True)
         cv_results.to_excel(f'{MODELS_DIR}/grid_search_results.xlsx', index=False)
 
-        mean_score_best = cv_results.loc[0, 'mean_test_score']
-        std_score_best = cv_results.loc[0, 'std_test_score']
-        threshold = mean_score_best - (std_score_best / np.sqrt(K_FOLDS))
-
-        
-
-        filtered_results = cv_results[cv_results['mean_test_score'] > threshold]
-        filtered_results.sort_values(by=['param_ccp_alpha'], ascending=False, inplace=True)
-        filtered_results.reset_index(inplace=True)
-
-        best_model_params = filtered_results.loc[0, 'params']
-        best_model = DecisionTreeRegressor(**best_model_params)
-        best_model.fit(X_train, y_train)
-
-        print(f"Best model = {grid_search.best_params_}")
-        print(f"Selected model = {best_model_params}")
-
-        #best_model = grid_search.best_estimator_
+        best_model = grid_search.best_estimator_
         joblib.dump(best_model, f'{MODELS_DIR}/model.pkl')
         convert_model(best_model, MODELS_DIR)
 
@@ -110,7 +94,7 @@ if __name__ == '__main__':
         plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
         plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")
 
-        plt.close('all')  # fecha todas as figuras abertas
-        gc.collect()      # força o garbage collector a liberar a memória
+        plt.close('all')
+        gc.collect()
 
     print(f"End of Execution.")

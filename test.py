@@ -3,17 +3,19 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from src.utils.orientation_utils import *
+from scipy import stats
 
+alpha = 0.05
+dof = 19
 
-qw = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-qx = 10*qw
-qy = 100*qw
-qz = 5*qw
+mean_1 = 0
+mean_2 = - 1
+mean_diff = mean_2 - mean_1
 
-y_arr = np.vstack((qw, qx, qy, qz)).T
+t_crit = stats.t.ppf(alpha, dof)
+print(f"t_crit = {t_crit}")
 
-y = y_arr[0, :]
+t_stat = (mean_2 - mean_1)
 
-print(y_arr, y_arr.shape, len(y_arr.shape))
-print(y, y.shape, len(y.shape))
+p_value = stats.t.cdf(mean_diff, dof)
+print(f"P-Value = {p_value}")
