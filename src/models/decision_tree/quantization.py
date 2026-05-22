@@ -43,24 +43,31 @@ if __name__ == '__main__':
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
         df_train = original_df[(original_df['set'] == 'train') & (original_df['object_id'] == OBJECT_ID)]
-        df_test = original_df[(original_df['set'] == 'test') & (original_df['object_id'] == OBJECT_ID)]
+        #df_test = original_df[(original_df['set'] == 'test') & (original_df['object_id'] == OBJECT_ID)]
+
+        #df_train = (df_train - df_train.min()) / (df_train.max() - df_train.min())
 
         num_bits_arr = []
-        rmse_geodesic_val_arr = []
+        rmse_val_arr = []
+        use_dtype = 'int'
 
         for num_bits in range(2, 16+1, 1):
+            print(f"Precssing quantization with {num_bits} bits...")
             num_bits_arr.append(num_bits)
             n_levels = 2**num_bits - 1
 
             X_train = df_train[X_cols]
+            X_train = (X_train - X_train.min()) / (X_train.max() - X_train.min())
             X_train = X_train*n_levels
             X_train = np.round(X_train)
-            X_train = X_train.astype('int')
+            X_train = X_train.astype(use_dtype)
             
-            y_train = df_train[y_cols]
+            y_train = df_train[y_cols].values
+
+            """ y_train = df_train[y_cols]
             y_train = y_train*n_levels
             y_train = np.round(y_train)
-            y_train = y_train.astype('int')
+            y_train = y_train.astype(use_dtype) """
 
             model = DecisionTreeRegressor(**PARAMS)
             model.fit(X_train, y_train)
@@ -77,17 +84,27 @@ if __name__ == '__main__':
                 param_grid=PARAM_GRID,
                 cv=K_FOLDS,
                 scoring=geodesic_rmse_scorer,
-                n_jobs=4,
+                n_jobs=2,
                 verbose=1
             )
             grid_search.fit(X_train, y_train)
             cv_results  = pd.DataFrame(grid_search.cv_results_)
             best_model = grid_search.best_estimator_
+            rmse_val_arr.append(-grid_search.best_score_)
 
-            
+            final_dir = f'{MODELS_DIR}/{num_bits}_bits'
 
-            joblib.dump(best_model, f'{MODELS_DIR}/{num_bits}_model.pkl')
-            convert_model(best_model, f"{MODELS_DIR}/{num_bits}_bits")
+            os.makedirs(final_dir, exist_ok=True)
 
+            joblib.dump(best_model, f'{final_dir}/{num_bits}_model.pkl')
+            convert_model(best_model, f"{final_dir}", use_dtype)
+
+    joblib.dump(rmse_val_arr, f'{MODELS_DIR}/rmse_arr.pkl')
+
+    plt.plot(num_bits_arr, rmse_val_arr, 'b.-')
+    plt.xlabel("Número de bits")
+    plt.ylabel(f"Erro geodésico (graus)")
+    plt.title(f"Erro geodésico médio do melhor modelo\nno conjunto validação (K={K_FOLDS})")
+    plt.savefig(f"{MODELS_DIR}/quantization_results.png")
 
     print(f"End of Execution.")
