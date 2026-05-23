@@ -27,6 +27,7 @@ if __name__ == '__main__':
     K_FOLDS = 10
     OBJECT_IDS = [4]#list(np.arange(1, 16, 1))
     NUM_BITS = 4
+    N_LEVELS = 2**NUM_BITS - 1
     SPLIT = '70_30'
     
     PARAMS = {}
@@ -37,7 +38,8 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}/quantization/{NUM_BITS}_bits'
+        #MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}/quantization/{NUM_BITS}_bits'
+        MODELS_DIR  = f'test_4bits_uint8/models/object_{OBJECT_ID}/decision_tree_{SPLIT}/quantization/{NUM_BITS}_bits'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -46,11 +48,21 @@ if __name__ == '__main__':
         df_train = original_df[(original_df['set'] == 'train') & (original_df['object_id'] == OBJECT_ID)]
         df_test = original_df[(original_df['set'] == 'test') & (original_df['object_id'] == OBJECT_ID)]
 
-        X_train = df_train[X_cols]
         y_train = df_train[y_cols].values
+        y_test = df_test[y_cols].values
+
+        X_train = df_train[X_cols]
+        train_min, train_max = X_train.min(), X_train.max()
+        X_train = (X_train - train_min) / (train_max - train_min)
+        X_train = X_train*N_LEVELS
+        X_train = np.round(X_train)
+        X_train = X_train.astype(np.uint8)
 
         X_test = df_test[X_cols]
-        y_test = df_test[y_cols].values
+        X_test = (X_test - train_min) / (train_max - train_min)
+        X_test = X_test*N_LEVELS
+        X_test = np.round(X_test)
+        X_test = X_test.astype(np.uint8)
 
         best_model = joblib.load(f"{MODELS_DIR}/{NUM_BITS}_model.pkl")
 

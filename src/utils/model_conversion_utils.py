@@ -34,3 +34,13 @@ def convert_model(model, save_dir, use_dtype='float'):
         proxy = SingleOutputRegressorProxy(model, i)
         cmodel = emlearn.convert(proxy, kind='DecisionTreeRegressor', method='inline', dtype=use_dtype)
         cmodel.save(name=f'model_{col}', file=f'{save_dir}/model_{col}.h')
+
+def convert_model_uint8(model, save_dir, use_dtype='uint8_t'):
+    for i, col in enumerate(['qw', 'qx', 'qy', 'qz']):
+        proxy = SingleOutputRegressorProxy(model, i)
+        cmodel = emlearn.convert(proxy, kind='DecisionTreeRegressor', method='inline', dtype=use_dtype)
+        cmodel.save(name=f'model_{col}', file=f'{save_dir}/model_{col}.h')
+
+def fix_thresholds(model):
+    model.tree_.threshold[:] = np.ceil(model.tree_.threshold)
+    return model
