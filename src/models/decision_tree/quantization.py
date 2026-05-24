@@ -20,7 +20,7 @@ from src.utils.model_evaluation_utils import (
     quaternion_to_euler,
     geodesic_rmse_scorer
 )
-from src.utils.model_conversion_utils import convert_model
+from src.utils.model_conversion_utils import convert_model, fix_thresholds
 
 
 if __name__ == '__main__':
@@ -43,16 +43,22 @@ if __name__ == '__main__':
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
         df_train = original_df[(original_df['set'] == 'train') & (original_df['object_id'] == OBJECT_ID)]
-        #df_test = original_df[(original_df['set'] == 'test') & (original_df['object_id'] == OBJECT_ID)]
-
-        #df_train = (df_train - df_train.min()) / (df_train.max() - df_train.min())
 
         num_bits_arr = []
         rmse_val_arr = []
-        use_dtype = 'int'
 
         for num_bits in range(2, 16+1, 1):
-            print(f"Precssing quantization with {num_bits} bits...")
+            if num_bits <= 8:
+                use_dtype = 'uint8_t'
+                np_dtype = np.uint8
+            elif num_bits <= 16:
+                use_dtype = 'uint16_t'
+                np_dtype = np.uint16
+            else:
+                use_dtype = 'uint32_t'
+                np_dtype = np.uint32
+
+            print(f"Processing quantization with {num_bits} bits. Using dtype {use_dtype}.")
             num_bits_arr.append(num_bits)
             n_levels = 2**num_bits - 1
 
@@ -60,14 +66,9 @@ if __name__ == '__main__':
             X_train = (X_train - X_train.min()) / (X_train.max() - X_train.min())
             X_train = X_train*n_levels
             X_train = np.round(X_train)
-            X_train = X_train.astype(use_dtype)
+            X_train = X_train.astype(np_dtype)
             
             y_train = df_train[y_cols].values
-
-            """ y_train = df_train[y_cols]
-            y_train = y_train*n_levels
-            y_train = np.round(y_train)
-            y_train = y_train.astype(use_dtype) """
 
             model = DecisionTreeRegressor(**PARAMS)
             model.fit(X_train, y_train)
@@ -84,7 +85,7 @@ if __name__ == '__main__':
                 param_grid=PARAM_GRID,
                 cv=K_FOLDS,
                 scoring=geodesic_rmse_scorer,
-                n_jobs=2,
+                n_jobs=4,
                 verbose=1
             )
             grid_search.fit(X_train, y_train)
@@ -97,6 +98,7 @@ if __name__ == '__main__':
             os.makedirs(final_dir, exist_ok=True)
 
             joblib.dump(best_model, f'{final_dir}/{num_bits}_model.pkl')
+            best_model = fix_thresholds(best_model)
             convert_model(best_model, f"{final_dir}", use_dtype)
 
     joblib.dump(rmse_val_arr, f'{MODELS_DIR}/rmse_arr.pkl')

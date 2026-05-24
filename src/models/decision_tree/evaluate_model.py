@@ -25,7 +25,7 @@ from src.utils.model_conversion_utils import convert_model
 
 if __name__ == '__main__':
     K_FOLDS = 10
-    OBJECT_IDS = [4]#list(np.arange(1, 16, 1))
+    OBJECT_IDS = [4] #list(np.arange(1, 16, 1))
     NUM_BITS = 4
     N_LEVELS = 2**NUM_BITS - 1
     SPLIT = '70_30'
@@ -38,8 +38,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        #MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}/quantization/{NUM_BITS}_bits'
-        MODELS_DIR  = f'test_4bits_uint8/models/object_{OBJECT_ID}/decision_tree_{SPLIT}/quantization/{NUM_BITS}_bits'
+        MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}/quantization/{NUM_BITS}_bits'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)

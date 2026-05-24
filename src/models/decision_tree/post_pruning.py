@@ -36,7 +36,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'test_comparison/models/object_{OBJECT_ID}/decision_tree_{SPLIT}'
+        MODELS_DIR  = f'models/object_{OBJECT_ID}/decision_tree_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)

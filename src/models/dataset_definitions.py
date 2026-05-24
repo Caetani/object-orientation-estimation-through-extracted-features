@@ -18,8 +18,8 @@ OBJECT_NAMES = {
 
 X_cols = [
     'compactness_ext', 
-    'compactness_int', 
-    'compactness_total', 
+    #'compactness_int', 
+    #'compactness_total', 
     'dist_centroid', 
     'angle_centroid', 
     'sin_centroid', 
