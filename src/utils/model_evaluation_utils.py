@@ -131,28 +131,6 @@ def plot_hist_components(y_true, y_pred, label, suffix, results_dir):
     print(f'Salvo: {path}')
 
 
-def old_plot_hist_geodesic(errors_tr, errors_te, results_dir):
-    rmse_tr = np.sqrt(np.mean(errors_tr**2))
-    rmse_te = np.sqrt(np.mean(errors_te**2))
-    fig, ax = plt.subplots(figsize=(7, 4))
-    ax.hist(errors_tr, bins=30, color=set_colors['train'], alpha=0.6,
-            edgecolor='white', linewidth=0.4, label='Treinamento')
-    ax.hist(errors_te, bins=30, color=set_colors['test'],  alpha=0.6,
-            edgecolor='white', linewidth=0.4, label='Teste')
-    ax.axvline(errors_tr.mean(), color=set_colors['train'], linewidth=1.2, linestyle='--',
-               label=f'Média treino: {errors_tr.mean():.1f}°  STD: {errors_tr.std():.1f}°  RMSE: {rmse_tr:.1f}°')
-    ax.axvline(errors_te.mean(), color=set_colors['test'],  linewidth=1.2, linestyle='--',
-               label=f'Média teste: {errors_te.mean():.1f}°  STD: {errors_te.std():.1f}°  RMSE: {rmse_te:.1f}°')
-    ax.set_xlabel('Erro geodésico angular (graus)')
-    ax.set_ylabel('Frequência')
-    ax.set_title('Distribuição do Erro Geodésico Angular')
-    ax.legend(fontsize=9)
-    plt.tight_layout()
-    path = f'{results_dir}/hist_geodesic.png'
-    plt.savefig(path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f'Salvo: {path}')
-
 def plot_hist_geodesic(geodesic_errors, results_dir, suffix, label):
     rmse = np.sqrt(np.mean(geodesic_errors**2))
     fig, ax = plt.subplots(figsize=(7, 4))

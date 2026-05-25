@@ -19,7 +19,8 @@ from src.utils.model_evaluation_utils import (
     plot_hist_geodesic,
     quaternion_to_euler,
     geodesic_rmse_scorer,
-    feature_importance
+    feature_importance,
+    plot_hist_components,
 )
 
 
@@ -52,6 +53,7 @@ if __name__ == '__main__':
         X_test = df_test[X_cols]
 
         model = joblib.load(f"{MODELS_DIR}/model.pkl")
+        print(f"Model complexity parameter: {model.ccp_alpha}")
 
         y_train_norm, y_pred_train, errors_train = evaluate(model, X_train, y_train, "Training set")
         y_test_norm,  y_pred_test,  errors_test  = evaluate(model, X_test, y_test, "Testing set")
@@ -61,12 +63,14 @@ if __name__ == '__main__':
         euler_test_true  = np.array([quaternion_to_euler(_q) for _q in y_test_norm])
         euler_test_pred  = np.array([quaternion_to_euler(_q) for _q in y_pred_test])
 
-        #plot_euler_hist(euler_train_true, euler_train_pred, 'Train', 'train', OUTPUT_DIR)
-        #plot_euler_hist(euler_test_true, euler_test_pred, 'Test', 'test', OUTPUT_DIR)
-        #plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
-        #plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
-        #plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")
-        
+        plot_euler_hist(euler_train_true, euler_train_pred, 'Train', 'train', OUTPUT_DIR)
+        plot_euler_hist(euler_test_true, euler_test_pred, 'Test', 'test', OUTPUT_DIR)
+        plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
+        plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
+        plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")
+        plot_hist_components(y_train_norm, y_pred_train, 'Train', 'train', OUTPUT_DIR)
+        plot_hist_components(y_test_norm, y_pred_test, 'Test', 'test', OUTPUT_DIR)
+
         feature_importance(model, X_cols, MODELS_DIR)
 
         plt.close('all')
