@@ -86,7 +86,7 @@ if __name__ == '__main__':
         cv_results.to_excel(f'{MODELS_DIR}/grid_search_results.xlsx', index=False)
 
         best_model = grid_search.best_estimator_
-        joblib.dump(best_model, f'{MODELS_DIR}/model.pkl')
+        joblib.dump(best_model, f'{MODELS_DIR}/model.pkl', compress=3)
 
         y_train_norm, y_pred_train, errors_train = evaluate(best_model, X_train, y_train, "Training set")
         y_test_norm,  y_pred_test,  errors_test  = evaluate(best_model, X_test, y_test, "Testing set")
