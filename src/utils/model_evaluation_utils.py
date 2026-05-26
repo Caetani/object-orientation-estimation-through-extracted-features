@@ -25,11 +25,10 @@ def calculate_rmse(y_pred, y_true):
 
 
 def evaluate(model, X, y_true, label):
-    y_pred   = model.predict(X)
-    print(f"Shape do y_pred: {np.shape(y_pred), type(y_pred)}")
-    y_pred   = normalize_quarternions(y_pred)
-    y_norm   = normalize_quarternions(y_true)
-    geodesic_errors   = geodesic_error(y_norm, y_pred)
+    y_pred = model.predict(X)
+    y_pred = normalize_quarternions(y_pred)
+    y_norm = normalize_quarternions(y_true)
+    geodesic_errors = geodesic_error(y_norm, y_pred)
     rmse_geodesic = np.sqrt(np.mean(geodesic_errors**2))
 
     print(f'\n── {label} ──')
@@ -151,10 +150,17 @@ def plot_hist_geodesic(geodesic_errors, results_dir, suffix, label):
 
 
 def geodesic_rmse_score_func(y, y_pred, **kwargs):
+    y = normalize_quarternions(y)
+    y_pred = normalize_quarternions(y_pred)
     return np.sqrt(np.mean(geodesic_error(q_true=y, q_pred=y_pred)**2))
 
 
 geodesic_rmse_scorer = make_scorer(geodesic_rmse_score_func, greater_is_better=False)
+
+def geodesic_rmse_oob(y, y_pred):
+    y = normalize_quarternions(y)
+    y_pred = normalize_quarternions(y_pred)
+    return -np.sqrt(np.mean(geodesic_error(q_true=y, q_pred=y_pred)**2))
 
 
 def feature_importance(model, columns, results_dir):
