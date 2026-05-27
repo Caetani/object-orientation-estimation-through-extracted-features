@@ -31,17 +31,6 @@ if __name__ == '__main__':
     SPLIT = '70_30'
     
     SVM_KERNEL = 'rbf'
-
-    PARAMS = {
-        'kernel': SVM_KERNEL,
-        #'epsilon': 0.01
-    }
-
-    PARAM_GRID = {
-        'estimator__C': list(2**(np.arange(-5, 10+1).astype('float'))),
-        'estimator__epsilon': list(10**(np.arange(-6, -2).astype("float"))),
-        'estimator__gamma': np.logspace(-4, 1, 10),
-    }
     
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
     original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)] # Gimbal lock (Pitch = 90% - Yaw == Roll)
@@ -61,7 +50,6 @@ if __name__ == '__main__':
         X_train = df_train[X_cols]
         y_train = df_train[y_cols].values
 
-        #pt_X_train = PowerTransformer(method='yeo-johnson', standardize=True)
         pt_X_train = StandardScaler()
         X_train = pt_X_train.fit_transform(X_train)
 
@@ -70,35 +58,18 @@ if __name__ == '__main__':
 
         X_test = pt_X_train.transform(X_test)
 
-        grid_search = GridSearchCV(
-            estimator=MultiOutputRegressor(SVR(**PARAMS)),
-            param_grid=PARAM_GRID,
-            cv=K_FOLDS,
-            scoring=geodesic_rmse_scorer,
-            n_jobs=4,
-            verbose=3
-        )
-        grid_search.fit(X_train, y_train)
-
-        cv_results  = pd.DataFrame(grid_search.cv_results_)
-        cv_results.sort_values(by=['rank_test_score'], ascending=True, inplace=True)
-        cv_results.reset_index(inplace=True)
-        print(cv_results)
-        cv_results.to_excel(f'{MODELS_DIR}/grid_search_results.xlsx', index=False)
-
-        best_model = grid_search.best_estimator_
-        joblib.dump(best_model, f'{MODELS_DIR}/model.pkl', compress=3)
+        model = joblib.load(f"{MODELS_DIR}/model.pkl")
         
-        y_train_norm, y_pred_train, errors_train = evaluate(best_model, X_train, y_train, "Training set")
-        y_test_norm,  y_pred_test,  errors_test  = evaluate(best_model, X_test, y_test, "Testing set")
+        y_train_norm, y_pred_train, errors_train = evaluate(model, X_train, y_train, "Training set")
+        y_test_norm,  y_pred_test,  errors_test  = evaluate(model, X_test, y_test, "Testing set")
 
         euler_train_true = np.array([quaternion_to_euler(_q) for _q in y_train_norm])
         euler_train_pred = np.array([quaternion_to_euler(_q) for _q in y_pred_train])
         euler_test_true  = np.array([quaternion_to_euler(_q) for _q in y_test_norm])
         euler_test_pred  = np.array([quaternion_to_euler(_q) for _q in y_pred_test])
 
-        plot_euler_hist(euler_train_true, euler_train_pred, 'Train', 'train', OUTPUT_DIR)
-        plot_euler_hist(euler_test_true, euler_test_pred, 'Test', 'test', OUTPUT_DIR)
+        plot_euler_hist(euler_train_true, euler_train_pred, 'Treinamento', 'train', OUTPUT_DIR)
+        plot_euler_hist(euler_test_true, euler_test_pred, 'Teste', 'test', OUTPUT_DIR)
         plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
         plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
         plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")

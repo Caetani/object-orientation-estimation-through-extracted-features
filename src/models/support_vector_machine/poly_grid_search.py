@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
-from sklearn.preprocessing import PowerTransformer
+from sklearn.preprocessing import PowerTransformer, StandardScaler
 from sklearn.multioutput import MultiOutputRegressor
 import gc
 import matplotlib.pyplot as plt
@@ -63,7 +63,8 @@ if __name__ == '__main__':
         X_train = df_train[X_cols]
         y_train = df_train[y_cols].values
 
-        pt_X_train = PowerTransformer(method='yeo-johnson', standardize=True)
+        #pt_X_train = PowerTransformer(method='yeo-johnson', standardize=True)
+        pt_X_train = StandardScaler()
         X_train = pt_X_train.fit_transform(X_train)
 
         X_test = df_test[X_cols]
