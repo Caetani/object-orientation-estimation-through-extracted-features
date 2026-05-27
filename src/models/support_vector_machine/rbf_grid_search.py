@@ -34,13 +34,12 @@ if __name__ == '__main__':
 
     PARAMS = {
         'kernel': SVM_KERNEL,
-        #'epsilon': 0.01
     }
 
     PARAM_GRID = {
         'estimator__C': list(2**(np.arange(-5, 10+1).astype('float'))),
         'estimator__epsilon': list(10**(np.arange(-6, -2).astype("float"))),
-        'estimator__gamma': np.logspace(-4, 1, 10),
+        'estimator__gamma': np.logspace(-4, 1, 30),
     }
     
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
