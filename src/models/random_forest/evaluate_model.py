@@ -5,10 +5,8 @@ import joblib
 import os
 import numpy as np
 import pandas as pd
-from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.preprocessing import PowerTransformer, StandardScaler
-from sklearn.multioutput import MultiOutputRegressor
 import gc
 import matplotlib.pyplot as plt
 from time import time
@@ -29,15 +27,13 @@ if __name__ == '__main__':
     OBJECT_IDS = [4] #list(np.arange(1, 16, 1))
     SPLIT = '70_30'
     
-    SVM_KERNEL = 'poly'
-    
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
     original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)] # Gimbal lock (Pitch = 90% - Yaw == Roll)
 
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'models/object_{OBJECT_ID}/support_vector_machine_{SVM_KERNEL}_{SPLIT}'
+        MODELS_DIR  = f'models/object_{OBJECT_ID}/random_forest_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -49,16 +45,11 @@ if __name__ == '__main__':
         X_train = df_train[X_cols]
         y_train = df_train[y_cols].values
 
-        pt_X_train = StandardScaler()
-        X_train = pt_X_train.fit_transform(X_train)
-
         X_test = df_test[X_cols]
         y_test = df_test[y_cols].values
 
-        X_test = pt_X_train.transform(X_test)
+        model = joblib.load(f'{MODELS_DIR}/model.pkl')
 
-        model = joblib.load(f"{MODELS_DIR}/model.pkl")
-        
         y_train_norm, y_pred_train, errors_train = evaluate(model, X_train, y_train, "Training set")
         y_test_norm,  y_pred_test,  errors_test  = evaluate(model, X_test, y_test, "Testing set")
 
@@ -69,8 +60,8 @@ if __name__ == '__main__':
 
         plot_hist_components(y_train_norm, y_pred_train, "Treinamento", 'train', OUTPUT_DIR)
         plot_hist_components(y_test_norm, y_pred_test, "Teste", "test", OUTPUT_DIR)
-        plot_euler_hist(euler_train_true, euler_train_pred, 'Treinamento', 'train', OUTPUT_DIR)
-        plot_euler_hist(euler_test_true, euler_test_pred, 'Teste', 'test', OUTPUT_DIR)
+        plot_euler_hist(euler_train_true, euler_train_pred, 'Train', 'train', OUTPUT_DIR)
+        plot_euler_hist(euler_test_true, euler_test_pred, 'Test', 'test', OUTPUT_DIR)
         plot_accuracy_threshold(errors_train, errors_test, OUTPUT_DIR)
         plot_hist_geodesic(errors_train, OUTPUT_DIR, "train", "Treinamento")
         plot_hist_geodesic(errors_test, OUTPUT_DIR, "test", "Teste")
