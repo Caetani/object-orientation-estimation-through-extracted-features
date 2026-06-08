@@ -37,8 +37,8 @@ if __name__ == '__main__':
         'solver': 'adam',
         'batch_size': 32,
         'max_iter': 10_000,
-        'hidden_layer_sizes': (450, 450),
-        'alpha': 0.0001
+        'hidden_layer_sizes': (350, 350),
+        'alpha': 0.01
     }
 
     #{'alpha': 0.01, 'hidden_layer_sizes': (250, 250)}
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'free_run_nn/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
+        MODELS_DIR  = f'free_run_nn_2/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)

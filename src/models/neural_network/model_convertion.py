@@ -11,7 +11,7 @@ if __name__ == '__main__':
     OBJECT_ID = 4
     SPLIT = '70_30'
 
-    MODELS_DIR  = f'test_nn_best_results/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
+    MODELS_DIR  = f'free_run_nn_2/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
 
     os.makedirs(MODELS_DIR, exist_ok=True)
 
