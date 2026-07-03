@@ -93,7 +93,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'models/object_{OBJECT_ID}/MLPRegressor_Search_2_neural_network_{SPLIT}'
+        MODELS_DIR  = f'models/object_{OBJECT_ID}/MLPRegressor_Search_3_neural_network_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -108,23 +108,25 @@ if __name__ == '__main__':
         X_test = df_test[X_cols]
         y_test = df_test[y_cols].values
 
-        """ hu_pca_cols = [f'hu_{i}' for i in range(1, 4+1, 1)]
+        hu_pca_cols = [f'hu_{i}' for i in range(1, 4+1, 1)]
         hu_pca_transformer = Pipeline(
             steps=[
-                ('power_transformer', PowerTransformer(
+                ("power_transformer", PowerTransformer(
                     method='yeo-johnson',
                     standardize=True
-                ))
+                )),
+                ('PCA', PCA(n_components=3)),
+                ('scaler', StandardScaler()),
             ]
-        ) """
+        )
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('hu_moments_pca', hu_pca_transformer, hu_pca_cols),
+            ], remainder=PowerTransformer(method='yeo-johnson', standardize=True)
+        )
 
         pipe = Pipeline([
-            ("power_transformer", PowerTransformer(
-                method='yeo-johnson',
-                standardize=True
-            )),
-            ("pca", PCA(n_components=21)),
-            ("scaler", StandardScaler()),
+            ("preprocessor", preprocessor),
             ("neural_network", MLPRegressor(**PARAMS)),
         ])
 
