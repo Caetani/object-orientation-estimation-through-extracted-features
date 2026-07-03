@@ -5,14 +5,15 @@ import joblib
 import os
 import numpy as np
 import pandas as pd
+from itertools import product
 from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.preprocessing import PowerTransformer
+from sklearn.preprocessing import PowerTransformer, StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.multioutput import MultiOutputRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
 import gc
 import matplotlib.pyplot as plt
-from itertools import product
 
 from src.models.dataset_definitions import X_cols, y_cols
 from src.utils.model_evaluation_utils import (
@@ -22,7 +23,6 @@ from src.utils.model_evaluation_utils import (
     plot_hist_geodesic,
     quaternion_to_euler,
     geodesic_rmse_scorer,
-    geodesic_rmse_oob,
 )
 
 
@@ -33,26 +33,59 @@ if __name__ == '__main__':
     
     PARAMS = {
         'loss': 'squared_error',
-        'activation': 'relu',
         'solver': 'adam',
-        'batch_size': 32,
-        'max_iter': 10_000,
+        'max_iter': 1_000,
+        'learning_rate': 'constant'
+        #'activation': 'relu',
+        #'batch_size': 16,
         #'early_stopping': True,
         #'validation_fraction': 0.1,
         #'n_iter_no_change': 10,
     }
 
-    #LAYERS = [(j,) for j in range(50, 150+10, 10)] + [(i, i) for i in range(50, 150+10, 10)]
-    #ALPHAS = [10**i for i in range(-6, -1, 1)]
-    layers_range = range(50, 550+100, 100)
-    LAYERS = [(j,) for j in layers_range] + [(i, i) for i in layers_range] + [(i, i, i) for i in layers_range]
-    ALPHAS = [10**i for i in range(-6, -1, 1)]
+    
+    """ #Param grid 1
+    layers_range = [2**i for i in range(3, 8+1, 1)]
+    LAYERS = [(j,) for j in layers_range] + [(i, i) for i in layers_range]
+    ALPHAS = [10**i for i in range(-5, -3, 1)]
+    LEARNING_RATES = [10**i for i in range(-5, -2+1, 1)]
+    ACTIVATIONS = ['relu']#['relu', 'logistic', 'tanh']
+    BATCH_SIZES = [2**i for i in range(3, 5+1, 1)]
+
 
     PARAM_GRID = {
+        'neural_network__hidden_layer_sizes': LAYERS,
+        'neural_network__alpha': ALPHAS,
+        'neural_network__learning_rate_init': LEARNING_RATES,
+        'neural_network__activation': ACTIVATIONS,
+        'neural_network__batch_size': BATCH_SIZES,
+    } """
+
+    layers_range = [2**i for i in range(6, 9+1, 1)]
+    LAYERS_1 = [(j,) for j in layers_range]
+    LAYERS_2 = list(product(layers_range, repeat=2))
+    LAYERS = LAYERS_1 + LAYERS_2
+    ALPHAS = [10**i for i in range(-5, -3, 1)]
+    LEARNING_RATES = [10**i for i in range(-3, -1+1, 1)]
+    ACTIVATIONS = ['relu']
+    BATCH_SIZES = [2**i for i in range(4, 5+1, 1)]
+
+
+    PARAM_GRID = {
+        'neural_network__hidden_layer_sizes': LAYERS,
+        'neural_network__alpha': ALPHAS,
+        'neural_network__learning_rate_init': LEARNING_RATES,
+        'neural_network__activation': ACTIVATIONS,
+        'neural_network__batch_size': BATCH_SIZES,
+    }
+
+    """ PARAM_GRID = {
         'hidden_layer_sizes': LAYERS,
         'alpha': ALPHAS,
-        #'max_iter': [i for i in range(100, 300+50, 50)]
-    }
+        'learning_rate_init': LEARNING_RATES,
+        'activation': ACTIVATIONS,
+        'batch_size': BATCH_SIZES,
+    } """
     
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
     original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)] # Gimbal lock (Pitch = 90% - Yaw == Roll)
@@ -60,7 +93,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'test_nn/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
+        MODELS_DIR  = f'models/object_{OBJECT_ID}/MLPRegressor_Search_2_neural_network_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -75,23 +108,38 @@ if __name__ == '__main__':
         X_test = df_test[X_cols]
         y_test = df_test[y_cols].values
 
-        """ hu_moments_for_pca_cols = [
-            'hu_1', 'hu_2', 'hu_3', 'hu_4'
-        ]
-        power_transformer_hu_pca = PowerTransformer(method='yeo-johnson', standardize=True)
-        X_train[hu_moments_for_pca_cols] = power_transformer_hu_pca.fit_transform(X_train[hu_moments_for_pca_cols])
-        X_test[hu_moments_for_pca_cols] = power_transformer_hu_pca.fit_transform(X_test[hu_moments_for_pca_cols])
-        pca_hu = PCA()
-        X_train[hu_moments_for_pca_cols] = pca_hu.fit_transform(X_train[hu_moments_for_pca_cols])
-        X_test[hu_moments_for_pca_cols] = pca_hu.fit_transform(X_test[hu_moments_for_pca_cols]) """
+        """ hu_pca_cols = [f'hu_{i}' for i in range(1, 4+1, 1)]
+        hu_pca_transformer = Pipeline(
+            steps=[
+                ('power_transformer', PowerTransformer(
+                    method='yeo-johnson',
+                    standardize=True
+                ))
+            ]
+        ) """
 
+        pipe = Pipeline([
+            ("power_transformer", PowerTransformer(
+                method='yeo-johnson',
+                standardize=True
+            )),
+            ("pca", PCA(n_components=21)),
+            ("scaler", StandardScaler()),
+            ("neural_network", MLPRegressor(**PARAMS)),
+        ])
 
-        power_transformer = PowerTransformer(method='yeo-johnson', standardize=True)
-        X_train = power_transformer.fit_transform(X_train)
-        X_test = power_transformer.transform(X_test)
+        """ pt = PowerTransformer(method='yeo-johnson', standardize=True)
+        sc = StandardScaler()
+
+        X_train = pd.DataFrame(pt.fit_transform(X_train), columns=X_cols)
+        X_test = pd.DataFrame(pt.transform(X_test), columns=X_cols) """
+
+        """ X_train = pd.DataFrame(sc.fit_transform(X_train), columns=X_cols)
+        X_test = pd.DataFrame(sc.transform(X_test), columns=X_cols) """
 
         grid_search = GridSearchCV(
-            estimator=MLPRegressor(**PARAMS),
+            estimator=pipe,
+            #estimator=MLPRegressor(**PARAMS),
             param_grid=PARAM_GRID,
             cv=K_FOLDS,
             scoring=geodesic_rmse_scorer,

@@ -9,3 +9,4 @@ openpyxl==3.1.5
 opencv-python==4.13.0.92
 ipykernel==7.2.0
 scikeras==0.13.0
+optuna==4.9.0

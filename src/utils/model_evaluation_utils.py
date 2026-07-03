@@ -157,6 +157,7 @@ def geodesic_rmse_score_func(y, y_pred, **kwargs):
 
 geodesic_rmse_scorer = make_scorer(geodesic_rmse_score_func, greater_is_better=False)
 
+
 def geodesic_rmse_oob(y, y_pred):
     y = normalize_quarternions(y)
     y_pred = normalize_quarternions(y_pred)

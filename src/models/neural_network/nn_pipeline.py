@@ -71,7 +71,17 @@ from src.utils.model_evaluation_utils import (
     quaternion_to_euler,
     geodesic_rmse_scorer,
     geodesic_rmse_oob,
+    geodesic_rmse_score_func,
 )
+
+
+def geodesic_rmse_keras(y_true, y_pred):
+    return tf.py_function(
+        lambda yt, yp: geodesic_rmse_score_func(yt.numpy(), yp.numpy()),
+        [y_true, y_pred],
+        tf.float32
+    )
+geodesic_rmse_keras.__name__ = "geodesic_rmse"
 
 def build_model(meta, hidden_layer_sizes=(64, 32), activation="relu", lr=1e-3):
     n_features_in = meta["n_features_in_"]
@@ -101,7 +111,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'models/object_{OBJECT_ID}/neural_network_{SPLIT}'
+        MODELS_DIR  = f'testing_nn/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -125,19 +135,49 @@ if __name__ == '__main__':
             ("scaler", StandardScaler()),
             ("neural_network", KerasRegressor(
                 model=build_model,
-                hidden_layer_sizes=(1024, 1024),  # e.g. (4,), (4, 4), (4, 4, 4)
+                hidden_layer_sizes=(512, 512),  # e.g. (4,), (4, 4), (4, 4, 4)
                 activation="relu",
                 lr=1e-4,
-                epochs=5000,
-                batch_size=16,
+                #metrics=geodesic_rmse_keras,
+                #epochs=5000,
+                epochs=1_000,
+                batch_size=32,
                 verbose=1,
+                validation_split=0.1
             )),
         ])
 
         pipe.fit(X_train, y_train)
+        print("History keys:", list(pipe.named_steps["neural_network"].history_.keys()))
 
         y_train_pred = pipe.predict(X_train)
         y_test_pred = pipe.predict(X_test)
+
+        history = pipe.named_steps["neural_network"].history_
+
+        # Loss
+        fig, ax = plt.subplots()
+        ax.plot(history["loss"],     label="Train loss")
+        ax.plot(history["val_loss"], label="Val loss")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss (MSE)")
+        ax.set_title(f"Object {OBJECT_ID} — Loss")
+        ax.legend()
+        fig.savefig(f'{OUTPUT_DIR}/loss_curve.png', dpi=150, bbox_inches='tight')
+        plt.close(fig)
+
+        # Metric (geodesic RMSE)
+        metric_key     = [k for k in history.keys() if k not in ("loss", "val_loss") and not k.startswith("val_")][0]
+        val_metric_key = f"val_{metric_key}"
+        fig, ax = plt.subplots()
+        ax.plot(history[metric_key],     label="Train metric")
+        ax.plot(history[val_metric_key], label="Val metric")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Geodesic RMSE")
+        ax.set_title(f"Object {OBJECT_ID} — Metric")
+        ax.legend()
+        fig.savefig(f'{OUTPUT_DIR}/metric_curve.png', dpi=150, bbox_inches='tight')
+        plt.close(fig)
 
         joblib.dump(pipe, f'{MODELS_DIR}/model.pkl', compress=3)
 
