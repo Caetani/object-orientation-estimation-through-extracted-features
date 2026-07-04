@@ -1,6 +1,7 @@
 import sys
 sys.path.insert(0, ".")
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import ctypes
 
 def _preload_cuda_libs():
@@ -18,7 +19,6 @@ def _preload_cuda_libs():
     tf_dir = os.path.join(venv, "lib", py_ver, "site-packages", "tensorflow")
     wsl_dir = "/usr/lib/wsl/lib"
 
-    # Order matters: load dependencies before the libs that depend on them
     libs = [
         (wsl_dir, "libcuda.so.1"),
         (tf_dir,  "libcudart.so.12"),
@@ -50,8 +50,10 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import PowerTransformer, StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
 from scikeras.wrappers import KerasRegressor
 from tensorflow import keras
+from tensorflow.keras.callbacks import EarlyStopping
 import tensorflow as tf
 
 gpus = tf.config.list_physical_devices("GPU")
@@ -76,16 +78,19 @@ from src.utils.model_evaluation_utils import (
 
 
 def geodesic_rmse_keras(y_true, y_pred):
-    return tf.py_function(
+    result = tf.py_function(
         lambda yt, yp: geodesic_rmse_score_func(yt.numpy(), yp.numpy()),
         [y_true, y_pred],
         tf.float32
     )
+    result.set_shape([])  # informa ao Keras que o resultado é um escalar
+    return result
+
 geodesic_rmse_keras.__name__ = "geodesic_rmse"
 
-def build_model(meta, hidden_layer_sizes=(64, 32), activation="relu", lr=1e-3):
-    n_features_in = meta["n_features_in_"]
-    n_outputs = meta["n_outputs_"]
+
+def build_model(hidden_layer_sizes=(64, 32), activation="relu", lr=1e-3, n_features_in=28):
+    n_outputs = 4
 
     model = keras.Sequential()
     model.add(keras.layers.Input(shape=(n_features_in,)))
@@ -96,22 +101,32 @@ def build_model(meta, hidden_layer_sizes=(64, 32), activation="relu", lr=1e-3):
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=lr),
         loss="mse",
+        metrics=[geodesic_rmse_keras],
+        run_eagerly=True,  # desativa compilação em grafo/XLA
     )
     return model
+
+
+PARAMS = {
+    'hidden_layer_sizes': (120, 120),
+    'activation': 'relu',
+    'lr': 1e-3
+}
+
 
 if __name__ == '__main__':
     print("GPU available:", tf.config.list_physical_devices('GPU'))
     K_FOLDS = 10
-    OBJECT_IDS = [4] #list(np.arange(1, 16, 1))
+    OBJECT_IDS = [4]  # list(np.arange(1, 16, 1))
     SPLIT = '70_30'
 
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
-    original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)] # Gimbal lock (Pitch = 90% - Yaw == Roll)
+    original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)]  # Gimbal lock (Pitch = 90% - Yaw == Roll)
 
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR  = f'testing_nn/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
+        MODELS_DIR = f'models/object_{OBJECT_ID}/Keras_neural_network_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -126,25 +141,49 @@ if __name__ == '__main__':
         X_test = df_test[X_cols]
         y_test = df_test[y_cols].values
 
+        hu_pca_cols = [f'hu_{i}' for i in range(1, 4 + 1, 1)]
+        hu_pca_transformer = Pipeline(
+            steps=[
+                ("power_transformer", PowerTransformer(
+                    method='yeo-johnson',
+                    standardize=True
+                )),
+                ('PCA', PCA(n_components=3)),
+                ('scaler', StandardScaler()),
+            ]
+        )
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('hu_moments_pca', hu_pca_transformer, hu_pca_cols),
+            ], remainder=PowerTransformer(method='yeo-johnson', standardize=True)
+        )
+
+        early_stopping = EarlyStopping(
+            monitor="val_loss",
+            patience=20,
+            min_delta=1e-3,
+            restore_best_weights=True,
+            verbose=1,
+        )
+
+        neural_network = KerasRegressor(
+            model=build_model,
+            hidden_layer_sizes=PARAMS['hidden_layer_sizes'],
+            activation=PARAMS['activation'],
+            lr=PARAMS['lr'],
+            n_features_in=27,
+            loss="mse",
+            metrics=[geodesic_rmse_keras],
+            epochs=10_000,
+            batch_size=16,
+            validation_split=0.1,
+            callbacks=[early_stopping],
+            verbose=1,
+        )
+
         pipe = Pipeline([
-            ("power_transformer", PowerTransformer(
-                method='yeo-johnson',
-                standardize=True
-            )),
-            ("pca", PCA(n_components=21)),
-            ("scaler", StandardScaler()),
-            ("neural_network", KerasRegressor(
-                model=build_model,
-                hidden_layer_sizes=(512, 512),  # e.g. (4,), (4, 4), (4, 4, 4)
-                activation="relu",
-                lr=1e-4,
-                #metrics=geodesic_rmse_keras,
-                #epochs=5000,
-                epochs=1_000,
-                batch_size=32,
-                verbose=1,
-                validation_split=0.1
-            )),
+            ("preprocessor", preprocessor),
+            ("neural_network", neural_network),
         ])
 
         pipe.fit(X_train, y_train)
@@ -155,39 +194,46 @@ if __name__ == '__main__':
 
         history = pipe.named_steps["neural_network"].history_
 
-        # Loss
-        fig, ax = plt.subplots()
-        ax.plot(history["loss"],     label="Train loss")
-        ax.plot(history["val_loss"], label="Val loss")
-        ax.set_xlabel("Epoch")
+        # ---- Loss curve (train vs validation) ----
+        best_epoch = np.argmin(history["val_loss"])
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(history["loss"], color="tab:blue", label="Treinamento")
+        ax.plot(history["val_loss"], color="tab:red", label="Validação")
+        ax.axvline(best_epoch, color="gray", linestyle="--", alpha=0.7, label="Melhor época")
+        ax.set_xlabel("Época")
         ax.set_ylabel("Loss (MSE)")
-        ax.set_title(f"Object {OBJECT_ID} — Loss")
+        ax.set_title(f"Objeto {OBJECT_ID} — Curva de perda")
         ax.legend()
+        ax.grid(True)
         fig.savefig(f'{OUTPUT_DIR}/loss_curve.png', dpi=150, bbox_inches='tight')
         plt.close(fig)
 
-        # Metric (geodesic RMSE)
-        metric_key     = [k for k in history.keys() if k not in ("loss", "val_loss") and not k.startswith("val_")][0]
+        # ---- Custom metric curve (geodesic RMSE, train vs validation) ----
+        metric_key = [k for k in history.keys() if k not in ("loss", "val_loss") and not k.startswith("val_")][0]
         val_metric_key = f"val_{metric_key}"
-        fig, ax = plt.subplots()
-        ax.plot(history[metric_key],     label="Train metric")
-        ax.plot(history[val_metric_key], label="Val metric")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Geodesic RMSE")
-        ax.set_title(f"Object {OBJECT_ID} — Metric")
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(history[metric_key], color="tab:blue", label="Treinamento")
+        ax.plot(history[val_metric_key], color="tab:red", label="Validação")
+        ax.axvline(best_epoch, color="gray", linestyle="--", alpha=0.7, label="Melhor época")
+        ax.set_xlabel("Época")
+        ax.set_ylabel("Erro geodésico (RMSE)")
+        ax.set_title(f"Objeto {OBJECT_ID} — Curva da métrica")
         ax.legend()
+        ax.grid(True)
         fig.savefig(f'{OUTPUT_DIR}/metric_curve.png', dpi=150, bbox_inches='tight')
         plt.close(fig)
 
         joblib.dump(pipe, f'{MODELS_DIR}/model.pkl', compress=3)
 
         y_train_norm, y_pred_train, errors_train = evaluate(pipe, X_train, y_train, "Training set")
-        y_test_norm,  y_pred_test,  errors_test  = evaluate(pipe, X_test, y_test, "Testing set")
+        y_test_norm, y_pred_test, errors_test = evaluate(pipe, X_test, y_test, "Testing set")
 
         euler_train_true = np.array([quaternion_to_euler(_q) for _q in y_train_norm])
         euler_train_pred = np.array([quaternion_to_euler(_q) for _q in y_pred_train])
-        euler_test_true  = np.array([quaternion_to_euler(_q) for _q in y_test_norm])
-        euler_test_pred  = np.array([quaternion_to_euler(_q) for _q in y_pred_test])
+        euler_test_true = np.array([quaternion_to_euler(_q) for _q in y_test_norm])
+        euler_test_pred = np.array([quaternion_to_euler(_q) for _q in y_pred_test])
 
         plot_euler_hist(euler_train_true, euler_train_pred, 'Train', 'train', OUTPUT_DIR)
         plot_euler_hist(euler_test_true, euler_test_pred, 'Test', 'test', OUTPUT_DIR)

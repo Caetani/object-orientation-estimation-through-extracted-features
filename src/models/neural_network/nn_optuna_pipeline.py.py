@@ -52,6 +52,7 @@ from optuna.samplers import TPESampler
 from sklearn.preprocessing import PowerTransformer, StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
 from scikeras.wrappers import KerasRegressor
 from tensorflow import keras
 import tensorflow as tf
@@ -112,7 +113,7 @@ def build_model(meta, hidden_layer_sizes=(64, 32), activation="relu", lr=1e-3, d
 if __name__ == '__main__':
     print("GPU available:", tf.config.list_physical_devices('GPU'))
 
-    N_TRIALS   = 500
+    N_TRIALS   = 50
     OBJECT_IDS = [4] #list(np.arange(1, 16, 1))
     SPLIT      = '70_30'
 
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSearching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR = f'testing_nn/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
+        MODELS_DIR = f'Search_3_model_optimization/models/object_{OBJECT_ID}/neural_network_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -141,36 +142,51 @@ if __name__ == '__main__':
 
         # ── Optuna objective ──────────────────────────────────────────────────────────
         def objective(trial):
-            lr           = trial.suggest_float("lr",           1e-5, 1e-2,  log=True)
-            n_layers     = trial.suggest_int(  "n_layers",     1,    2)
-            units        = trial.suggest_categorical("units",  [64, 128, 256, 512, 1024])
+            lr           = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+            n_layers     = trial.suggest_int(  "n_layers", 1, 2)
+            units        = trial.suggest_int("units",  128, 512)
             activation   = trial.suggest_categorical("activation", ["relu"])
             batch_size   = trial.suggest_categorical("batch_size", [16, 32, 64])
             dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5)
 
             hidden_layer_sizes = tuple([units] * n_layers)
 
-            pipe = Pipeline([
-                ("power_transformer", PowerTransformer(
+            pca_hu_moments_cols = [f"hu_{i}" for i in range(1, 4+1, 1)]
+            pca_hu_moments_pipe = Pipeline(
+                steps=[
+                    ('power_transformer', PowerTransformer(
+                        method='yeo-johnson',
+                        standardize=True
+                    )),
+                    ('pca', PCA(n_components=2)),
+                    ('scaling', StandardScaler()),
+                ]
+            )
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ('pca_hu_moments', pca_hu_moments_pipe, pca_hu_moments_cols)
+                ], remainder=PowerTransformer(
                     method='yeo-johnson',
                     standardize=True
-                )),
-                ("pca", PCA(n_components=21)),
-                ("scaler", StandardScaler()),
+                )
+            )
+
+            pipe = Pipeline([
+                ('preprocessing', preprocessor),
                 ("neural_network", KerasRegressor(
                     model=build_model,
                     hidden_layer_sizes=hidden_layer_sizes,
                     activation=activation,
                     lr=lr,
                     dropout_rate=dropout_rate,
-                    epochs=1_000,
+                    epochs=10_000,
                     batch_size=batch_size,
-                    verbose=0,
+                    verbose=1,
                     validation_split=0.1,
                     callbacks=[
                         keras.callbacks.EarlyStopping(
                             monitor='val_loss',
-                            patience=20,
+                            patience=500,
                             restore_best_weights=True,
                         )
                     ],
@@ -223,27 +239,41 @@ if __name__ == '__main__':
         best_hidden_layer_sizes = tuple([best["units"]] * best["n_layers"])
 
         print(f"\n  Retraining final model on full training set...")
-        pipe = Pipeline([
-            ("power_transformer", PowerTransformer(
+        pca_hu_moments_cols = [f"hu_{i}" for i in range(1, 4+1, 1)]
+        pca_hu_moments_pipe = Pipeline(
+            steps=[
+                ('power_transformer', PowerTransformer(
+                    method='yeo-johnson',
+                    standardize=True
+                )),
+                ('pca', PCA(n_components=2)),
+                ('scaling', StandardScaler()),
+            ]
+        )
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('pca_hu_moments', pca_hu_moments_pipe, pca_hu_moments_cols)
+            ], remainder=PowerTransformer(
                 method='yeo-johnson',
                 standardize=True
-            )),
-            ("pca", PCA(n_components=21)),
-            ("scaler", StandardScaler()),
-            ("neural_network", KerasRegressor(
+            )
+        )
+        pipe = Pipeline([
+                ('preprocessing', preprocessor),
+                ("neural_network", KerasRegressor(
                 model=build_model,
                 hidden_layer_sizes=best_hidden_layer_sizes,
                 activation=best["activation"],
                 lr=best["lr"],
                 dropout_rate=best["dropout_rate"],
-                epochs=1_000,
+                epochs=10_000,
                 batch_size=best["batch_size"],
                 verbose=1,
                 validation_split=0.1,
                 callbacks=[
                     keras.callbacks.EarlyStopping(
                         monitor='val_loss',
-                        patience=30,
+                        patience=500,
                         restore_best_weights=True,
                     )
                 ],
