@@ -38,20 +38,20 @@ if __name__ == '__main__':
         'learning_rate': 'constant',
         'activation': 'relu',
         'batch_size': 16,
-        #'validation_fraction': 0.1,
+        'validation_fraction': 0.1,
         'hidden_layer_sizes': (512, 512),
-        'learning_rate_init': 0.001,
-        'alpha': 0.0001,
-        #'early_stopping': True,
-        #'n_iter_no_change': 20,
-        #'tol': 1e-5,
+        'learning_rate_init': 0.0001,
+        'alpha': 0.001,
+        'early_stopping': True,
+        'n_iter_no_change': 100,
+        'tol': 1e-5,
     }
 
     # Parâmetros usados apenas no loop manual de treino/validação (curva de loss)
     MANUAL_TRAIN_EPOCHS = 2000
     MANUAL_PATIENCE = 100
     MANUAL_TOL = 1e-5
-    MANUAL_VAL_FRACTION = 0.2
+    MANUAL_VAL_FRACTION = 0.1
 
     original_df = pd.read_excel(f'processed/splitted_train_{SPLIT}.xlsx')
     original_df = original_df[(original_df['frame_id'] != 1277) & (original_df['frame_id'] != 1295)]  # Gimbal lock (Pitch = 90% - Yaw == Roll)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     for OBJECT_ID in OBJECT_IDS:
         print(f"\n\nSeaching model configuration for object {OBJECT_ID}...")
 
-        MODELS_DIR = f'models/object_{OBJECT_ID}/MLPRegressor_Best_Model_2_{SPLIT}'
+        MODELS_DIR = f'models/object_{OBJECT_ID}/MLPRegressor_Best_Model_5_{SPLIT}'
         OUTPUT_DIR = f'{MODELS_DIR}/performance'
 
         os.makedirs(MODELS_DIR, exist_ok=True)
